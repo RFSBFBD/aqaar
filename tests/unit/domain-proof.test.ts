@@ -46,7 +46,7 @@ describe('Sprint 0.5 Domain Invariant Proofs', () => {
 
   it('proves sequential partial payments eventually settle all installments cleanly', () => {
     const amounts = generateInstallmentAmounts(100_000n, 3); // [33334, 33333, 33333]
-    let state = amounts.map((amount, idx) => ({
+    const state = amounts.map((amount, idx) => ({
       id: `i-${idx + 1}`,
       amount,
       paidAmount: 0n,

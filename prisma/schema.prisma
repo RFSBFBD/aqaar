@@ -1,0 +1,291 @@
+// This is your Prisma schema file
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── TENANT ──────────────────────────────────────────────
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users        User[]
+  units        Unit[]
+  clients      Client[]
+  reservations Reservation[]
+  contracts    Contract[]
+  payments     Payment[]
+  auditLogs    AuditLog[]
+
+  @@map("companies")
+}
+
+// ─── AUTH ─────────────────────────────────────────────────
+enum UserRole {
+  ADMIN
+  SALES
+  ACCOUNTANT
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  name         String
+  role         UserRole
+  companyId    String   @map("company_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  company           Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  sessions          Session[]
+  clients           Client[]
+  reservations      Reservation[]
+  createdContracts  Contract[]    @relation("ContractCreatedBy")
+  approvedContracts Contract[]    @relation("ContractApprovedBy")
+  recordedPayments  Payment[]     @relation("PaymentRecordedBy")
+  auditLogs         AuditLog[]
+
+  @@index([companyId])
+  @@map("users")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  tokenHash    String   @unique @map("token_hash")
+  userId       String   @map("user_id")
+  expiresAt    DateTime @map("expires_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+// ─── RATE LIMITING ────────────────────────────────────────
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  email     String
+  ipAddress String   @map("ip_address")
+  success   Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([email, createdAt])
+  @@index([ipAddress, createdAt])
+  @@map("login_attempts")
+}
+
+// ─── UNITS ────────────────────────────────────────────────
+enum UnitStatus {
+  AVAILABLE
+  RESERVED
+  SOLD
+}
+
+model Unit {
+  id          String     @id @default(cuid())
+  companyId   String     @map("company_id")
+  projectName String     @map("project_name")
+  unitNumber  String     @map("unit_number")
+  type        String
+  area        Float
+  rooms       Int
+  // Price in minor currency units (e.g., fils/cents). Stored as BigInt.
+  price       BigInt
+  status      UnitStatus @default(AVAILABLE)
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  reservations Reservation[]
+  contracts    Contract[]
+
+  @@unique([companyId, unitNumber])
+  @@index([companyId, status])
+  @@index([companyId, price])
+  @@map("units")
+}
+
+// ─── CLIENTS ──────────────────────────────────────────────
+model Client {
+  id        String   @id @default(cuid())
+  companyId String   @map("company_id")
+  agentId   String   @map("agent_id")
+  name      String
+  phone     String
+  notes     String   @default("")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  agent        User          @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  reservations Reservation[]
+  contracts    Contract[]
+
+  @@index([companyId, agentId])
+  @@map("clients")
+}
+
+// ─── RESERVATIONS ─────────────────────────────────────────
+enum ReservationStatus {
+  ACTIVE
+  EXPIRED
+  CONVERTED
+}
+
+model Reservation {
+  id        String            @id @default(cuid())
+  companyId String            @map("company_id")
+  unitId    String            @map("unit_id")
+  clientId  String            @map("client_id")
+  agentId   String            @map("agent_id")
+  status    ReservationStatus @default(ACTIVE)
+  expiresAt DateTime          @map("expires_at")
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+
+  company  Company    @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  unit     Unit       @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  client   Client     @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  agent    User       @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  contracts Contract[]
+
+  // Only one active reservation per unit (enforced by partial unique index via raw SQL in migration)
+  @@index([companyId])
+  @@index([unitId, status])
+  @@index([expiresAt, status])
+  @@map("reservations")
+}
+
+// ─── CONTRACTS ────────────────────────────────────────────
+enum ContractStatus {
+  DRAFT
+  APPROVED
+}
+
+model Contract {
+  id              String         @id @default(cuid())
+  companyId       String         @map("company_id")
+  reservationId   String         @map("reservation_id")
+  unitId          String         @map("unit_id")
+  clientId        String         @map("client_id")
+  createdById     String         @map("created_by_id")
+  approvedById    String?        @map("approved_by_id")
+  status          ContractStatus @default(DRAFT)
+  // All amounts in minor currency units (BigInt)
+  unitPrice       BigInt         @map("unit_price")
+  discount        BigInt         @default(0)
+  finalPrice      BigInt         @map("final_price")
+  downPayment     BigInt         @map("down_payment")
+  remainingAmount BigInt         @map("remaining_amount")
+  installmentCount Int           @map("installment_count")
+  startDate       DateTime       @map("start_date") @db.Date
+  approvedAt      DateTime?      @map("approved_at")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  reservation  Reservation   @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+  unit         Unit          @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  client       Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  createdBy    User          @relation("ContractCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  approvedBy   User?         @relation("ContractApprovedBy", fields: [approvedById], references: [id], onDelete: Restrict)
+  installments Installment[]
+  payments     Payment[]
+
+  @@index([companyId, status])
+  @@map("contracts")
+}
+
+// ─── INSTALLMENTS ─────────────────────────────────────────
+enum InstallmentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  OVERDUE
+}
+
+model Installment {
+  id            String            @id @default(cuid())
+  contractId    String            @map("contract_id")
+  sequenceNumber Int              @map("sequence_number")
+  // All amounts in minor currency units (BigInt)
+  amount        BigInt
+  paidAmount    BigInt            @default(0) @map("paid_amount")
+  status        InstallmentStatus @default(PENDING)
+  dueDate       DateTime          @map("due_date") @db.Date
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+
+  contract    Contract             @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  allocations PaymentAllocation[]
+
+  @@unique([contractId, sequenceNumber])
+  @@index([contractId, status])
+  @@index([dueDate, status])
+  @@map("installments")
+}
+
+// ─── PAYMENTS ─────────────────────────────────────────────
+model Payment {
+  id             String   @id @default(cuid())
+  companyId      String   @map("company_id")
+  contractId     String   @map("contract_id")
+  // Amount in minor currency units (BigInt)
+  amount         BigInt
+  idempotencyKey String   @map("idempotency_key")
+  recordedById   String   @map("recorded_by_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  company     Company              @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  contract    Contract             @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  recordedBy  User                 @relation("PaymentRecordedBy", fields: [recordedById], references: [id], onDelete: Restrict)
+  allocations PaymentAllocation[]
+
+  @@unique([companyId, idempotencyKey])
+  @@index([contractId])
+  @@map("payments")
+}
+
+model PaymentAllocation {
+  id            String @id @default(cuid())
+  paymentId     String @map("payment_id")
+  installmentId String @map("installment_id")
+  // Amount allocated in minor currency units (BigInt)
+  amount        BigInt
+
+  payment     Payment     @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  installment Installment @relation(fields: [installmentId], references: [id], onDelete: Restrict)
+
+  @@index([paymentId])
+  @@index([installmentId])
+  @@map("payment_allocations")
+}
+
+// ─── AUDIT LOG ────────────────────────────────────────────
+model AuditLog {
+  id         String   @id @default(cuid())
+  companyId  String   @map("company_id")
+  userId     String   @map("user_id")
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  details    String   @default("{}")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, createdAt])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}

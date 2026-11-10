@@ -14,3 +14,15 @@ All test executions and verification checks are recorded here with exact command
 | TypeScript check | Static | `npm run typecheck` | 0 errors | TS2305 in `src/lib/prisma.ts`, `src/server/auth/session.ts` (`@prisma/client` not generated) | FAIL | Fix Prisma 7 config & run `prisma generate` |
 | ESLint | Lint | `npm run lint` | 0 errors | Failed (`next lint` invalid in Next.js 16) | FAIL | Configure `eslint.config.mjs` and update script to `eslint .` |
 | Vitest unit suite | Unit | `npm test` | All pass | Exited 1: No test files found | FAIL | Create Sprint 0.5 domain tests |
+
+## Phase 0 & Phase 1 Verification — 2026-11-11
+
+| Check / Test | Type | Command | Expected | Actual | Status |
+|--------------|------|---------|----------|--------|--------|
+| Phase 0 + 1 Unit Tests | Unit | `npm test` | All pass | 5 files, 42/42 passed | PASS |
+| Prisma Schema Validate | Schema | `npx prisma validate` | Valid | Valid (`prisma.config.ts`) | PASS |
+| Prisma Generate | Codegen | `npx prisma generate` | Client generated | Generated v7.10.1 | PASS |
+| TypeScript Strict | Static | `npm run typecheck` | 0 errors | Exit 0 (0 errors) | PASS |
+| ESLint | Lint | `npm run lint` | 0 errors | Exit 0 (0 errors, 0 warnings) | PASS |
+| Production Build | Build | `npm run build` | Compiled | Exit 0 | PASS |
+| Live DB Migrate / Seed / Integration | Integration | `npm run test:integration` | Pass on Postgres | Not run — Docker daemon not running / no Postgres on 5432 | BLOCKED |

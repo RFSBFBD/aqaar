@@ -7,17 +7,20 @@ Tracks discovered bugs, configuration defects, root causes, fixes, and regressio
 ## BUG-001: Prisma 7 `schema.prisma` datasource `url` validation error (P1012)
 - **Discovered:** 2026-11-11 during recovery verification (`npx prisma validate`)
 - **Root Cause:** Project installed `prisma@7.10.1` and `@prisma/client@7.10.1`, where Prisma 7 removed `url = env("DATABASE_URL")` from `schema.prisma` and requires `prisma.config.ts` + a driver adapter (`@prisma/adapter-pg` + `pg`) for `PrismaClient`.
-- **Status:** Open (queued for Sprint 1.1/1.2 repair after Phase 0 gate).
+- **Fix:** Created `prisma.config.ts`, installed `@prisma/adapter-pg@7.10.1`, `pg@8.23.1`, `dotenv@18.0.10`, removed `url` from `prisma/schema.prisma`, updated `src/lib/prisma.ts` to use `PrismaPg` lazily.
+- **Status:** FIXED & VERIFIED (`npx prisma validate` and `npx prisma generate` exit 0).
 
 ## BUG-002: `npm run lint` fails under Next.js 16
 - **Discovered:** 2026-11-11 during recovery verification (`npm run lint`)
 - **Root Cause:** `package.json` uses `"lint": "next lint"`, which in Next.js 16 is no longer a subcommand (`Invalid project directory provided: D:\Aqar Elite\lint`). Also no `eslint.config.mjs` exists.
-- **Status:** Open (queued for Sprint 1.1 repair after Phase 0 gate).
+- **Fix:** Created `eslint.config.mjs` with `eslint-config-next/core-web-vitals` + `eslint-config-next/typescript` and updated `package.json` script to `"lint": "eslint ."`.
+- **Status:** FIXED & VERIFIED (`npm run lint` exits 0).
 
 ## BUG-003: TypeScript compilation fails on `@prisma/client` imports
 - **Discovered:** 2026-11-11 during recovery verification (`npm run typecheck`)
-- **Root Cause:** `prisma generate` has not been executed yet because `schema.prisma` failed validation (BUG-001).
-- **Status:** Open (blocked by BUG-001).
+- **Root Cause:** `prisma generate` had not been executed yet because `schema.prisma` failed validation (BUG-001).
+- **Fix:** Fixed BUG-001 and ran `npx prisma generate`.
+- **Status:** FIXED & VERIFIED (`npm run typecheck` exits 0).
 
 ## BUG-004: `src/domain/state-machines.ts` `deriveInstallmentStatus` compares exact timestamp vs UTC date
 - **Discovered:** 2026-11-11 during code inspection of `src/domain/state-machines.ts` vs `src/domain/dates.ts`
