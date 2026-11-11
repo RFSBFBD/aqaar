@@ -1,0 +1,153 @@
+# عقار إيليت (Aqar Elite)
+
+نظام متعدد الشركات (Multi-Tenant) لإدارة مبيعات الوحدات العقارية بالتقسيط، مصمم وفق مواصفات `RA-HR-2026-1110` مع واجهة عربية RTL كاملة، وحسابات مالية دقيقة خالية من الفواصل العائمة (`BigInt` minor units)، وحماية أمنية على مستوى الخادم وقاعدة البيانات.
+
+---
+
+## 1. وصف مختصر للنظام
+يدير النظام دورة بيع الوحدات العقارية بالتقسيط لعدة شركات عقارية معزولة تماماً داخل نفس البنية:
+- **الوحدات العقارية (`Units`)**: إضافة وتعديل الوحدات وأسعارها، مع فلترة وترتيب وتصفح من الخادم.
+- **العملاء (`Clients`)**: عزل عملاء كل مندوب مبيعات عن الآخرين داخل نفس الشركة.
+- **الحجوزات (`Reservations`)**: حجز ذري لمدة **72 ساعة** يمنع الحجز المتزامن لنفس الوحدة، مع انتهاء صلاحية تلقائي.
+- **العقود والأقساط (`Contracts` & `Installments`)**: إنشاء مسودة عقد بخصم بحد أقصى 5%، ثم اعتمادها من المحاسب في معاملة ذرية واحدة لتوليد جدول الأقساط وتحويل الوحدة إلى `SOLD`.
+- **الدفعات (`Payments`)**: سجل غير قابل للتعديل أو الحذف (`append-only`)، مع توزيع تلقائي على الأقساط الأقدم غير المسددة (FIFO) ومفتاح عدم التكرار (`idempotencyKey`).
+- **سجل التدقيق (`AuditLog`)**: توثيق العمليات الحساسة ومراجعتها من مدير الشركة.
+
+---
+
+## 2. التقنيات المستخدمة والقرارات المعمارية
+- **Next.js 16 (App Router) + TypeScript Strict (`5.8.3`)**: إطار موحد للواجهة والخادم، مع فصل واضح بين `src/app` و`src/server/services` و`src/server/repositories` و`src/domain`.
+- **PostgreSQL 16 + Prisma ORM (`7.10.1` + `@prisma/adapter-pg`)**: قيود سلامة البيانات في قاعدة البيانات (`CHECK` constraints، فهرس فريد جزئي `reservations_one_active_per_unit`، وTriggers تمنع تعديل/حذف الدفعات أو تعديل العقود المعتمدة).
+- **Zod (`4.6.7`)**: تحقق صارم `.strict()` على الخادم لمنع mass assignment وحقن المعاملات.
+- **bcryptjs (`3.0.3`) + Database-backed Sessions**: تجزئة كلمات المرور (cost 12) وتخزين SHA-256 لرموز الجلسات في PostgreSQL مع `HttpOnly` cookies.
+- **Vitest (`5.1.0`) + Playwright (`1.65.0`)**: اختبارات وحدة صافية، اختبارات تكامل وتزامن على PostgreSQL حقيقي، واختبارات متصفح E2E.
+- التفاصيل الكاملة للقرارات موثقة في [`docs/ARCHITECTURE_DECISIONS.md`](docs/ARCHITECTURE_DECISIONS.md).
+
+---
+
+## 3. متطلبات التشغيل
+- **Docker & Docker Compose** (للتشغيل الكامل بأمر واحد)
+- أو للتشغيل المحلي المباشر: **Node.js 22+** و**PostgreSQL 16**
+
+---
+
+## 4. خطوات التشغيل من جهاز نظيف (محلياً)
+```bash
+git clone <private-repository-url>
+cd "Aqar Elite"
+cp .env.example .env
+npm ci
+npx prisma generate
+npm run db:migrate
+npm run db:seed
+npm run dev
+```
+
+---
+
+## 5. التشغيل عبر Docker Compose
+```bash
+docker compose up --build -d
+# في المرة الأولى لتهيئة بيانات الاختبار التجريبية:
+docker compose exec app npm run db:seed
+```
+- ينتظر `app` جاهزية `postgres` عبر `condition: service_healthy` قبل بدء التشغيل.
+- ينفذ الحاوي `npx prisma migrate deploy` تلقائياً ثم يبدأ Next.js على `http://localhost:3000`.
+- فحص الجاهزية: `GET /api/health`.
+
+> **ملاحظة الإنتاج:** في `docker-compose.yml` القيمة الافتراضية `COOKIE_SECURE=false` مخصصة للتشغيل المحلي عبر `http://localhost:3000`. عند النشر خلف HTTPS في الإنتاج، عيّن `COOKIE_SECURE=true` وغيّر `SESSION_SECRET` وكلمات مرور قاعدة البيانات.
+
+---
+
+## 6. الترحيلات وبيانات الاختبار (Migrations & Seed)
+- **الترحيلات:** `npm run db:migrate` (ينفذ `prisma migrate deploy` متضمناً `prisma/migrations/20261111000000_init/migration.sql`).
+- **البيانات التجريبية (Idempotent):** `npm run db:seed` (آمن للتكرار عبر `upsert`).
+
+---
+
+## 7. حسابات الاختبار المحلية (بيئة التطوير والتقييم فقط)
+كلمة المرور الافتراضية لحسابات الاختبار المحلية: `AqarElite!2026` (أو قيمة `SEED_DEFAULT_PASSWORD`). **ممنوع استخدامها في الإنتاج.**
+
+| الشركة | الدور | البريد الإلكتروني |
+|--------|-------|-------------------|
+| شركة النخبة العقارية (A) | مدير (`ADMIN`) | `admin.a@nukhba.local` |
+| شركة النخبة العقارية (A) | محاسب (`ACCOUNTANT`) | `accountant.a@nukhba.local` |
+| شركة النخبة العقارية (A) | مندوب (`SALES`) | `sales1.a@nukhba.local` |
+| شركة النخبة العقارية (A) | مندوب (`SALES`) | `sales2.a@nukhba.local` |
+| شركة دار المستقبل (B) | مدير (`ADMIN`) | `admin.b@mustaqbal.local` |
+| شركة دار المستقبل (B) | محاسب (`ACCOUNTANT`) | `accountant.b@mustaqbal.local` |
+| شركة دار المستقبل (B) | مندوب (`SALES`) | `sales1.b@mustaqbal.local` |
+| شركة دار المستقبل (B) | مندوب (`SALES`) | `sales2.b@mustaqbal.local` |
+
+---
+
+## 8. شرح عزل الشركات (Tenant Isolation)
+- يُستخرج `companyId` حصرياً على الخادم عبر `getTenantContext()` من الجلسة الموثوقة (`Session -> User -> companyId`) في [`src/server/auth/guards.ts`](src/server/auth/guards.ts).
+- ترفض مخططات Zod الحقول غير المصرح بها (`.strict()`) بما فيها `companyId` أو `role` أو `agentId`.
+- تقبل جميع خدمات وRepositories معامل `TenantContext` إلزامياً وتقيد كل `WHERE` بـ `companyId`، مع إرجاع `404` موحد عند محاولة الوصول إلى معرف يخص شركة أخرى لمنع كشف وجود المورد (IDOR).
+
+---
+
+## 9. مصفوفة الصلاحيات
+| العملية | ADMIN | SALES | ACCOUNTANT |
+|---------|-------|-------|------------|
+| عرض الوحدات وتصفيتها | نعم | نعم | نعم |
+| إضافة/تعديل وحدة وتغيير السعر (المتاحة فقط) | نعم | لا (403) | لا (403) |
+| عرض العملاء | كل عملاء الشركة | عملاؤه فقط | كل عملاء الشركة |
+| إضافة/تعديل عميل | لا (403) | عملاؤه فقط | لا (403) |
+| حجز وحدة (72 ساعة) وإنشاء مسودة عقد | لا (403) | لعملائه فقط | لا (403) |
+| اعتماد العقد وتسجيل الدفعات | لا (403) | لا (403) | نعم |
+| عرض سجل التدقيق | نعم (قراءة فقط) | لا (403) | لا (403) |
+
+---
+
+## 10. الافتراضات وقواعد العمل الموثقة
+انظر [`docs/ASSUMPTIONS.md`](docs/ASSUMPTIONS.md) و[`docs/DOMAIN_RULES.md`](docs/DOMAIN_RULES.md)، وأهمها:
+- لا يوجد إلغاء أو تمديد يدوي للحجز؛ ينتهي الحجز تلقائياً بعد 72 ساعة عبر **Lazy Expiration** قبل العمليات الحرجة بالإضافة إلى سكربت `src/server/jobs/expire-reservations.ts`.
+- حالة `OVERDUE` للقسط مشتقة زمنياً بـ UTC عند القراءة/العرض ولا تطغى أبداً على القسط المدفوع بالكامل (`PAID`).
+- لا يوجد signup أو إدارة مستخدمين أو استعادة كلمة مرور أو تصدير أو رفع ملفات (خارج النطاق).
+
+---
+
+## 11. منطق الأقساط والدفعات وتواريخ الاستحقاق
+- **التمثيل المالي:** كل المبالغ تُحسب وتُخزن بـ `BigInt` بوحدات العملة الصغرى (`100 = 1.00`)، وتُرسل في JSON كسلاسل نصية رقمية (`"85000000"`).
+- **الخصم والدفعة الأولى:** الخصم بحد أقصى `5%` من سعر الوحدة؛ `finalPrice = unitPrice - discount`؛ `remainingAmount = finalPrice - downPayment`.
+- **توزيع الأقساط:** `base = remaining / count` مع توزيع الباقي (`remainder = remaining % count`) بإضافة `+1` إلى أول `remainder` أقساط لضمان تطابق المجموع التام.
+- **تواريخ الاستحقاق (سياسة 31 يناير):** تثبيت يوم الأساس الأصلي في UTC مع تقليصه لآخر يوم في الشهر عند الحاجة: `Jan 31 → Feb 28/29 → Mar 31 → Apr 30 → May 31`.
+- **توزيع الدفعات (FIFO):** تُوزع الدفعة على الأقساط الأقدم غير المسددة أولاً، وتُرفض أي دفعة تتجاوز إجمالي المتبقي، ويمنع `(companyId, idempotencyKey)` وقفل صف العقد (`FOR UPDATE`) التكرار أو السباق.
+
+---
+
+## 12. أهم 3 مخاطر أمنية وكيف عولجت
+1. **الوصول عبر الشركات / IDOR وتزوير الهوية:** عولج باستخراج `companyId` من الجلسة على الخادم فقط، وتمرير `TenantContext` إلزامياً لكل استعلام، وإرجاع `404` موحد، ورفض أي حقول إضافية عبر `.strict()`.
+2. **سباق الحجز المزدوج وتجاوز المتبقي عند الدفع المتزامن:** عولج في الحجز بتحديث ذري مشروط (`WHERE status = 'AVAILABLE'`) مع فهرس فريد جزئي `reservations_one_active_per_unit`، وفي الدفعات بقفل `FOR UPDATE` على صف العقد + فهرس `(companyId, idempotencyKey)` + Triggers تمنع تعديل/حذف الدفعات.
+3. **XSS عبر ملاحظات العملاء واختطاف الجلسات/CSRF:** عولج بترميز React التلقائي (دون `dangerouslySetInnerHTML`) وترويسة `Content-Security-Policy`، وتخزين hash رمز الجلسة فقط في DB، وكوكيز `HttpOnly` + `SameSite=Lax`، والتحقق من `Origin`/`Referer` في `assertCsrfSafe`.
+
+---
+
+## 13. الاختبارات والأوامر ونتائجها
+| الأمر | الغرض | الحالة المرصودة |
+|-------|-------|----------------|
+| `npm test` | اختبارات الوحدة والمجال الصافي (`tests/unit/`) | **PASS** — 8 ملفات، 51/51 اختباراً ناجحاً |
+| `npm run typecheck` | فحص TypeScript الصارم | **PASS** — 0 أخطاء |
+| `npm run lint` | فحص ESLint | **PASS** — 0 أخطاء، 0 تحذيرات |
+| `npm run build` | بناء الإنتاج Next.js | **PASS** |
+| `npm audit --audit-level=high` | فحص ثغرات الاعتماديات | **PASS** — 0 ثغرات High/Critical |
+| `npm run test:integration` | اختبارات التكامل والتزامن على PostgreSQL | **BLOCKED** محلياً لأن Docker Desktop / PostgreSQL غير مشغل حالياً على الجهاز |
+| `npm run test:e2e` | اختبارات المتصفح Playwright E2E | **BLOCKED** محلياً لعدم تشغيل PostgreSQL |
+
+---
+
+## 14. ما لم يُنجز محلياً (البيئة) وكيف يُستكمل
+تم إكمال كامل الشيفرة البرمجية، الترحيلات، البذور، الواجهات، اختبارات الوحدة، اختبارات التكامل، اختبارات E2E، إعدادات Docker وCI. الشيء الوحيد غير المنفذ عملياً في هذه الجلسة هو تشغيل الأوامر التي تتطلب خدمة PostgreSQL حية (`prisma migrate deploy`، `db:seed`، `test:integration`، `test:e2e`، `docker compose up`) لأن Docker Desktop غير مشغل في بيئة Windows الحالية. فور تشغيل Docker Desktop، تُستكمل عبر:
+```bash
+docker compose up --build -d
+docker compose exec app npm run db:seed
+npm run test:integration
+npm run test:e2e
+```
+
+---
+
+## 15. استخدام أدوات الذكاء الاصطناعي
+استُخدمت أدوات المساعدة بالذكاء الاصطناعي في صياغة التوثيق الأولي وتسريع كتابة الطبقات النمطية واختبارات التغطية، مع مراجعة يدوية كاملة لقواعد المجال المالي (`BigInt` بدون float)، وسياسة التواريخ، ومعاملات التزامن في PostgreSQL، وعزل المستأجرين، والتحقق الفعلي من المخرجات عبر الفحوصات الآلية.
