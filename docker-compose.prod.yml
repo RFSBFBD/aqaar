@@ -16,3 +16,4 @@ services:
       SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set to a 32+ char random secret in production}
       COOKIE_SECURE: "true"
       TRUST_PROXY: ${TRUST_PROXY:-true}
+      RUN_SEED: "false"

@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aqar_secret}
       POSTGRES_DB: ${POSTGRES_DB:-aqar_elite}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - aqar_pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -33,6 +33,7 @@ services:
       LOGIN_WINDOW_SECONDS: ${LOGIN_WINDOW_SECONDS:-900}
       TRUST_PROXY: ${TRUST_PROXY:-false}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      RUN_SEED: ${RUN_SEED:-true}
     ports:
       - "${APP_PORT:-3000}:3000"
     healthcheck:

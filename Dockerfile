@@ -35,4 +35,4 @@ COPY --from=builder --chown=nextjs:nodejs /app/src ./src
 USER nextjs
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma migrate deploy && npm run start"]
+CMD ["sh", "-c", "npx prisma migrate deploy && if [ \"$RUN_SEED\" = \"true\" ]; then npm run db:seed; fi && npm run start"]
