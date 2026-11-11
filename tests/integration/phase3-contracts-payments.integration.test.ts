@@ -198,4 +198,46 @@ describe('Phase 3 Integration Tests — Contracts, Installments, Payments & Conc
     const finalDetail = await getContractDetail(accountantA, draft.id);
     expect(finalDetail.outstandingBalance).toBe('20000');
   });
+
+  it('serializes concurrent updateContractDraft vs approveContract with controlled 409 (no raw DB trigger 500)', async () => {
+    const unit = await createUnit(adminA, {
+      projectName: 'مشروع سباق الاعتماد',
+      unitNumber: `RACE-${Date.now()}`,
+      type: 'شقة',
+      area: 125,
+      rooms: 3,
+      price: 200_000n,
+    });
+    unitIds.push(unit.id);
+
+    const res = await createReservation(salesA1, { unitId: unit.id, clientId: 'cli_a_1' });
+    const draft = await createContractDraft(salesA1, {
+      reservationId: res.id,
+      discount: 0n,
+      downPayment: 20_000n,
+      installmentCount: 3,
+      startDate: new Date(Date.UTC(2026, 0, 31)),
+    });
+
+    const [approveResult, updateResult] = await Promise.allSettled([
+      approveContract(accountantA, draft.id),
+      updateContractDraft(salesA1, draft.id, { downPayment: 50_000n }),
+    ]);
+
+    expect(approveResult.status).toBe('fulfilled');
+
+    if (updateResult.status === 'rejected') {
+      expect(updateResult.reason).toMatchObject({ statusCode: 409 });
+    }
+
+    // Regardless of race winner, contract is now APPROVED and any subsequent update returns controlled 409
+    await expect(
+      updateContractDraft(salesA1, draft.id, { downPayment: 10_000n })
+    ).rejects.toMatchObject({ statusCode: 409 });
+
+    const finalState = await getContractDetail(accountantA, draft.id);
+    expect(finalState.status).toBe('APPROVED');
+    const instSum = finalState.installments.reduce((acc, i) => acc + BigInt(i.amount), 0n);
+    expect(instSum + BigInt(finalState.downPayment)).toBe(BigInt(finalState.finalPrice));
+  });
 });

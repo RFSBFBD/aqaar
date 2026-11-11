@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { invalidateSession, SESSION_COOKIE_NAME } from '@/server/auth';
+import { isSecureCookie } from '@/server/auth/cookies';
 import { assertCsrfSafe } from '@/server/http/csrf';
 import { handleApiError } from '@/server/http/errors';
 
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
     const response = NextResponse.json({ success: true });
     response.cookies.set(SESSION_COOKIE_NAME, '', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production' && process.env.COOKIE_SECURE !== 'false',
+      secure: isSecureCookie(),
       sameSite: 'lax',
       path: '/',
       maxAge: 0,

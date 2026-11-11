@@ -55,7 +55,7 @@ docker compose exec app npm run db:seed
 - ينفذ الحاوي `npx prisma migrate deploy` تلقائياً ثم يبدأ Next.js على `http://localhost:3000`.
 - فحص الجاهزية: `GET /api/health`.
 
-> **ملاحظة الإنتاج:** في `docker-compose.yml` القيمة الافتراضية `COOKIE_SECURE=false` مخصصة للتشغيل المحلي عبر `http://localhost:3000`. عند النشر خلف HTTPS في الإنتاج، عيّن `COOKIE_SECURE=true` وغيّر `SESSION_SECRET` وكلمات مرور قاعدة البيانات.
+> **ملاحظة الإنتاج:** في `docker-compose.yml` القيمة الافتراضية `COOKIE_SECURE=false` مخصصة للتشغيل المحلي عبر `http://localhost:3000`. للنشر الإنتاجي عبر HTTPS، استخدم [`docker-compose.prod.yml`](docker-compose.prod.yml) التي تفرض `COOKIE_SECURE=true` و`TRUST_PROXY=true` وتطلب أسراراً غير افتراضية، واتبع [`docs/PRODUCTION_RUNBOOK.md`](docs/PRODUCTION_RUNBOOK.md) لإجراءات النسخ الاحتياطي والاستعادة لـ `aqar_pgdata`.
 
 ---
 

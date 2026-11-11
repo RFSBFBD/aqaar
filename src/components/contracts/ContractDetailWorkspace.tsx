@@ -10,6 +10,7 @@ import {
   CreditCard,
 } from 'lucide-react';
 import { formatMinorUnits, majorInputToMinorString } from '@/lib/format';
+import { generateIdempotencyKey } from '@/lib/uuid';
 import {
   contractStatusBadge,
   installmentStatusBadge,
@@ -90,7 +91,7 @@ export function ContractDetailWorkspace({
 
   // Payment entry
   const [payAmountInput, setPayAmountInput] = useState('');
-  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
+  const [idempotencyKey, setIdempotencyKey] = useState(() => generateIdempotencyKey());
   const [confirmPaymentOpen, setConfirmPaymentOpen] = useState(false);
   const [recordingPayment, setRecordingPayment] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
@@ -215,7 +216,7 @@ export function ContractDetailWorkspace({
       setConfirmPaymentOpen(false);
       setPayAmountInput('');
       // Rotate idempotency key for the NEXT distinct payment
-      setIdempotencyKey(crypto.randomUUID());
+      setIdempotencyKey(generateIdempotencyKey());
       setSuccessMsg('تم تسجيل الدفعة وتوزيعها على الأقساط الأقدم بنجاح.');
       await loadContract();
     } catch {

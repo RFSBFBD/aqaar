@@ -329,56 +329,74 @@ export async function createContractDraft(
 export async function updateContractDraft(
   ctx: TenantContext,
   contractId: string,
-  input: UpdateContractDraftInput
+  input: UpdateContractDraftInput,
+  now: Date = new Date()
 ): Promise<ContractDetailDto> {
-  const existing = await prisma.contract.findFirst({
-    where: {
-      id: contractId,
-      companyId: ctx.companyId,
-    },
+  await prisma.$transaction(async (tx) => {
+    const locked = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT "id" FROM "contracts"
+      WHERE "id" = ${contractId} AND "company_id" = ${ctx.companyId}
+      FOR UPDATE
+    `;
+
+    if (locked.length === 0) {
+      throw new DomainError('العقد غير موجود', 404);
+    }
+
+    const existing = await tx.contract.findUniqueOrThrow({
+      where: { id: contractId },
+      include: {
+        reservation: true,
+        unit: true,
+      },
+    });
+
+    if (existing.status === 'APPROVED') {
+      throw new DomainError('العقد معتمد ولا يمكن تعديله', 409);
+    }
+
+    if (ctx.userRole !== 'SALES' || existing.createdById !== ctx.userId) {
+      throw new AuthError('تعديل مسودة العقد متاح لمندوب المبيعات المنشئ فقط', 403);
+    }
+
+    if (
+      existing.reservation.status !== 'ACTIVE' ||
+      existing.reservation.expiresAt <= now ||
+      existing.unit.status !== 'RESERVED'
+    ) {
+      throw new DomainError('انتهت صلاحية الحجز ولا يمكن تعديل مسودة العقد', 409);
+    }
+
+    const nextDiscount = input.discount ?? existing.discount;
+    const nextDownPayment = input.downPayment ?? existing.downPayment;
+    const nextCount = input.installmentCount ?? existing.installmentCount;
+
+    const discountCheck = validateDiscount(existing.unitPrice, nextDiscount);
+    if (!discountCheck.valid) {
+      throw new DomainError(discountCheck.message ?? 'الخصم غير صالح', 400);
+    }
+
+    const finalPrice = calculateFinalPrice(existing.unitPrice, nextDiscount);
+    const downCheck = validateDownPayment(finalPrice, nextDownPayment);
+    if (!downCheck.valid) {
+      throw new DomainError(downCheck.message ?? 'الدفعة الأولى غير صالحة', 400);
+    }
+
+    const remainingAmount = calculateRemainingAmount(finalPrice, nextDownPayment);
+
+    await tx.contract.update({
+      where: { id: existing.id },
+      data: {
+        discount: nextDiscount,
+        finalPrice,
+        downPayment: nextDownPayment,
+        remainingAmount,
+        installmentCount: nextCount,
+      },
+    });
   });
 
-  if (!existing) {
-    throw new DomainError('العقد غير موجود', 404);
-  }
-
-  if (existing.status === 'APPROVED') {
-    throw new DomainError('العقد معتمد ولا يمكن تعديله', 409);
-  }
-
-  if (ctx.userRole !== 'SALES' || existing.createdById !== ctx.userId) {
-    throw new AuthError('تعديل مسودة العقد متاح لمندوب المبيعات المنشئ فقط', 403);
-  }
-
-  const nextDiscount = input.discount ?? existing.discount;
-  const nextDownPayment = input.downPayment ?? existing.downPayment;
-  const nextCount = input.installmentCount ?? existing.installmentCount;
-
-  const discountCheck = validateDiscount(existing.unitPrice, nextDiscount);
-  if (!discountCheck.valid) {
-    throw new DomainError(discountCheck.message ?? 'الخصم غير صالح', 400);
-  }
-
-  const finalPrice = calculateFinalPrice(existing.unitPrice, nextDiscount);
-  const downCheck = validateDownPayment(finalPrice, nextDownPayment);
-  if (!downCheck.valid) {
-    throw new DomainError(downCheck.message ?? 'الدفعة الأولى غير صالحة', 400);
-  }
-
-  const remainingAmount = calculateRemainingAmount(finalPrice, nextDownPayment);
-
-  await prisma.contract.update({
-    where: { id: existing.id },
-    data: {
-      discount: nextDiscount,
-      finalPrice,
-      downPayment: nextDownPayment,
-      remainingAmount,
-      installmentCount: nextCount,
-    },
-  });
-
-  return getContractDetail(ctx, contractId);
+  return getContractDetail(ctx, contractId, now);
 }
 
 /**

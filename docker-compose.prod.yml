@@ -1,0 +1,18 @@
+# Production Docker Compose overlay — enforces Secure cookies, required secrets, and restart policies.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+services:
+  postgres:
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required in production}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required in production}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required in production}
+
+  app:
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:?POSTGRES_USER is required in production}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required in production}@postgres:5432/${POSTGRES_DB:?POSTGRES_DB is required in production}?schema=public
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set to a 32+ char random secret in production}
+      COOKIE_SECURE: "true"
+      TRUST_PROXY: ${TRUST_PROXY:-true}

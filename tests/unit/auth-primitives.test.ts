@@ -67,7 +67,7 @@ describe('Phase 1 Auth & Security Primitives', () => {
     });
   });
 
-  it('blocks mismatched Origin on mutating requests (CSRF check)', () => {
+  it('blocks mismatched Origin, cross-site Sec-Fetch-Site, and cookie-auth requests missing Origin/Referer', () => {
     const badReq = {
       method: 'POST',
       headers: new Headers({
@@ -78,11 +78,44 @@ describe('Phase 1 Auth & Security Primitives', () => {
 
     expect(() => assertCsrfSafe(badReq)).toThrow();
 
+    const crossSiteFetch = {
+      method: 'POST',
+      headers: new Headers({
+        host: 'localhost:3000',
+        'sec-fetch-site': 'cross-site',
+        cookie: 'aqar_session=abc',
+      }),
+    } as unknown as NextRequest;
+
+    expect(() => assertCsrfSafe(crossSiteFetch)).toThrow();
+
+    const missingOriginWithCookie = {
+      method: 'POST',
+      headers: new Headers({
+        host: 'localhost:3000',
+        cookie: 'aqar_session=abc',
+      }),
+    } as unknown as NextRequest;
+
+    expect(() => assertCsrfSafe(missingOriginWithCookie)).toThrow();
+
+    const sameOriginFetchNoOrigin = {
+      method: 'POST',
+      headers: new Headers({
+        host: 'localhost:3000',
+        'sec-fetch-site': 'same-origin',
+        cookie: 'aqar_session=abc',
+      }),
+    } as unknown as NextRequest;
+
+    expect(() => assertCsrfSafe(sameOriginFetchNoOrigin)).not.toThrow();
+
     const goodReq = {
       method: 'POST',
       headers: new Headers({
         host: 'localhost:3000',
         origin: 'http://localhost:3000',
+        cookie: 'aqar_session=abc',
       }),
     } as unknown as NextRequest;
 

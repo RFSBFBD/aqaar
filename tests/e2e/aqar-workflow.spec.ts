@@ -171,4 +171,37 @@ test.describe('Aqar Elite Full E2E Business, UX & Security Workflow', () => {
     const uncaught = errors.filter((e) => e.startsWith('pageerror:'));
     expect(uncaught).toEqual([]);
   });
+
+  test('Payment form initializes and submits cleanly when crypto.randomUUID is unavailable (non-HTTPS LAN HTTP simulation)', async ({
+    page,
+  }) => {
+    const pageErrors: string[] = [];
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+
+    await page.addInitScript(() => {
+      Object.defineProperty(window.crypto, 'randomUUID', {
+        value: undefined,
+        configurable: true,
+      });
+    });
+
+    await page.goto('/login');
+    await page.getByLabel('البريد الإلكتروني').fill('accountant.a@nukhba.local');
+    await page.getByLabel('كلمة المرور').fill(DEV_PASSWORD);
+    await page.getByRole('button', { name: 'تسجيل الدخول' }).click();
+    await expect(page).toHaveURL(/\/units/);
+
+    await page.getByRole('link', { name: 'العقود والأقساط' }).click();
+    await expect(page).toHaveURL(/\/contracts/);
+
+    await page.getByRole('link', { name: 'فتح العقد' }).first().click();
+    await expect(page.getByRole('heading', { name: 'تسجيل دفعة جديدة' })).toBeVisible();
+
+    await page.getByLabel(/مبلغ الدفعة/).fill('10000');
+    await page.getByRole('button', { name: 'تسجيل الدفعة' }).click();
+    await page.getByRole('button', { name: 'تأكيد التسجيل' }).click();
+    await expect(page.getByText(/تم تسجيل الدفعة وتوزيعها على الأقساط الأقدم/)).toBeVisible();
+
+    expect(pageErrors).toEqual([]);
+  });
 });

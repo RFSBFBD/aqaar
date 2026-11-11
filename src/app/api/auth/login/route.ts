@@ -4,16 +4,8 @@ import { loginWithCredentials } from '@/server/auth/service';
 import { getSessionCookieOptions } from '@/server/auth/cookies';
 import { SESSION_COOKIE_NAME } from '@/server/auth/guards';
 import { assertCsrfSafe } from '@/server/http/csrf';
+import { getClientIp } from '@/server/http/client-ip';
 import { handleApiError } from '@/server/http/errors';
-
-function getClientIp(request: NextRequest): string {
-  const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) {
-    const first = forwarded.split(',')[0]?.trim();
-    if (first) return first;
-  }
-  return request.headers.get('x-real-ip') ?? '127.0.0.1';
-}
 
 export async function POST(request: NextRequest) {
   try {
