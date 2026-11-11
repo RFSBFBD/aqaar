@@ -50,3 +50,15 @@ All 56 in-scope mandatory requirements (`REQ-001` – `REQ-056`) are implemented
 - Host port `5433` was passed during this machine's verification (`POSTGRES_PORT=5433`) solely because an unrelated container already bound host port `5432`; on a clean host, `docker compose up` uses standard `5432` by default.
 - Local Docker HTTP uses `COOKIE_SECURE=false`; production HTTPS deployments must set `COOKIE_SECURE=true` and rotate `SESSION_SECRET` and database credentials.
 - `docker-compose.yml` uses `aqar-elite-postgres` / `aqar-elite-app`; ready for submission (`PASS`).
+
+---
+
+## 5. Post-Audit Medium Remediation Update (2026-11-11)
+All 5 Medium-priority audit conditions were remediated and re-verified after final edits:
+- Non-HTTPS LAN UUID fallback (`src/lib/uuid.ts`, `tests/unit/uuid.test.ts`, Playwright E2E #2).
+- `TRUST_PROXY` IP rate-limiting guard (`src/server/http/client-ip.ts`, `tests/unit/client-ip.test.ts`, live HTTP `429` spoofing test).
+- Strict CSRF check for cookie-authenticated mutations missing `Origin`/`Referer` (`src/server/http/csrf.ts`, `tests/unit/auth-primitives.test.ts`, live HTTP `403` test).
+- `FOR UPDATE` row lock in `updateContractDraft()` (`src/server/services/contract.service.ts`, concurrent `phase3` integration test).
+- Production overlay `docker-compose.prod.yml` (`COOKIE_SECURE=true`, fail-fast secrets) + verified `pg_dump`/`pg_restore` runbook (`docs/PRODUCTION_RUNBOOK.md`).
+
+Re-verified results: `npm run lint` (0 errors), `npm run typecheck` (0 errors), `npm test` (10 files, 55/55 passed), `npm run test:integration` (4 files, 15/15 passed), `npm run test:e2e` (2/2 passed), `npm audit --audit-level=high` (0 High/Critical), `npm run build` (exit 0), live HTTP security audit (12/12 passed), `docker compose ps` (`aqar-elite-app` + `aqar-elite-postgres` healthy).

@@ -63,3 +63,31 @@ Tracks discovered bugs, configuration defects, root causes, fixes, and regressio
 - **Root Cause:** `AppShell.tsx` used `translate-x-full` on `fixed right-0` `<aside>` when `!mobileOpen` without `hidden lg:block`, leaving the drawer visible in full-page / RTL mobile captures.
 - **Fix:** Switched closed mobile `<aside>` to `hidden lg:block` (`mobileOpen ? 'block' : 'hidden'`) so it is completely hidden when closed on mobile and always visible on `lg:` desktop.
 - **Status:** Fix applied; rebuilding Docker `app` container and re-verifying screenshot.
+
+## BUG-011: `crypto.randomUUID()` unavailable over non-HTTPS LAN HTTP IP addresses
+- **Discovered:** 2026-11-11 during Independent Acceptance Audit
+- **Root Cause:** `ContractDetailWorkspace.tsx` called `crypto.randomUUID()` directly, which browsers restrict to Secure Contexts (`https://` or `localhost`).
+- **Fix:** Added `src/lib/uuid.ts` (`generateIdempotencyKey()`) falling back to `crypto.getRandomValues()` RFC 4122 v4 generation.
+- **Regression Test:** `tests/unit/uuid.test.ts` + Playwright E2E test #2 (`window.crypto.randomUUID = undefined`).
+- **Status:** FIXED & VERIFIED.
+
+## BUG-012: Login rate limiter unconditionally trusted `X-Forwarded-For` / `X-Real-IP` headers
+- **Discovered:** 2026-11-11 during Independent Acceptance Audit (`SEC-01`)
+- **Root Cause:** `getClientIp()` in `src/app/api/auth/login/route.ts` read `x-forwarded-for` without checking whether the app runs behind a trusted reverse proxy.
+- **Fix:** Extracted `src/server/http/client-ip.ts` which ignores forwarded headers unless `TRUST_PROXY=true` is explicitly configured.
+- **Regression Test:** `tests/unit/client-ip.test.ts` + live HTTP `X-Forwarded-For` spoofing check (`429` on 6th attempt).
+- **Status:** FIXED & VERIFIED.
+
+## BUG-013: CSRF guard allowed cookie-authenticated mutations when both `Origin` and `Referer` were absent
+- **Discovered:** 2026-11-11 during Independent Acceptance Audit (`SEC-02`)
+- **Root Cause:** `assertCsrfSafe()` in `src/server/http/csrf.ts` returned early when both `Origin` and `Referer` were omitted.
+- **Fix:** Added `Sec-Fetch-Site` enforcement and rejected cookie-authenticated mutating requests lacking `Origin`, `Referer`, and `Sec-Fetch-Site: same-origin` with HTTP `403`.
+- **Regression Test:** `tests/unit/auth-primitives.test.ts` + live HTTP missing-Origin cookie check (`403`).
+- **Status:** FIXED & VERIFIED.
+
+## BUG-014: `updateContractDraft()` lacked `FOR UPDATE` lock during concurrent contract approval
+- **Discovered:** 2026-11-11 during Independent Acceptance Audit
+- **Root Cause:** `updateContractDraft()` read contract status outside a locked transaction, allowing a simultaneous `approveContract()` to cause a PostgreSQL trigger exception (`500`) instead of `409`.
+- **Fix:** Wrapped `updateContractDraft()` in `$transaction` with `SELECT ... FOR UPDATE` on `contracts` and active-reservation verification, returning HTTP `409`.
+- **Regression Test:** `tests/integration/phase3-contracts-payments.integration.test.ts` (`serializes concurrent updateContractDraft vs approveContract with controlled 409`).
+- **Status:** FIXED & VERIFIED.
