@@ -49,6 +49,7 @@ export function UnitsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES' | 'AC
   const [formRooms, setFormRooms] = useState('');
   const [formPrice, setFormPrice] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
+  const [formFieldErrors, setFormFieldErrors] = useState<Record<string, string>>({});
   const [savingUnit, setSavingUnit] = useState(false);
 
   // Sales reserve modal
@@ -163,6 +164,7 @@ export function UnitsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES' | 'AC
     setFormRooms('');
     setFormPrice('');
     setFormError(null);
+    setFormFieldErrors({});
     setUnitModalOpen(true);
   }
 
@@ -175,18 +177,22 @@ export function UnitsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES' | 'AC
     setFormRooms(String(unit.rooms));
     setFormPrice(minorStringToMajorInput(unit.price));
     setFormError(null);
+    setFormFieldErrors({});
     setUnitModalOpen(true);
   }
 
   async function handleSaveUnit(e: FormEvent) {
     e.preventDefault();
     setFormError(null);
+    setFormFieldErrors({});
 
     let priceMinor: string;
     try {
       priceMinor = majorInputToMinorString(formPrice);
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'السعر غير صالح');
+      const msg = err instanceof Error ? err.message : 'السعر غير صالح';
+      setFormError(msg);
+      setFormFieldErrors({ price: msg });
       return;
     }
 
@@ -212,8 +218,14 @@ export function UnitsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES' | 'AC
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const data = (await res.json()) as { error?: string };
+      const data = (await res.json()) as {
+        error?: string;
+        fieldErrors?: Record<string, string>;
+      };
       if (!res.ok) {
+        if (data.fieldErrors) {
+          setFormFieldErrors(data.fieldErrors);
+        }
         setFormError(data.error ?? 'تعذر حفظ الوحدة');
         return;
       }
@@ -611,6 +623,9 @@ export function UnitsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES' | 'AC
                   onChange={(e) => setFormProject(e.target.value)}
                   className="min-h-[42px] w-full rounded border border-[#E2DDD3] px-3 text-sm"
                 />
+                {formFieldErrors.projectName && (
+                  <p className="mt-1 text-xs text-[#B91C1C]">{formFieldErrors.projectName}</p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -625,6 +640,9 @@ export function UnitsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES' | 'AC
                     onChange={(e) => setFormNumber(e.target.value)}
                     className="min-h-[42px] w-full rounded border border-[#E2DDD3] px-3 text-sm tabular-nums"
                   />
+                  {formFieldErrors.unitNumber && (
+                    <p className="mt-1 text-xs text-[#B91C1C]">{formFieldErrors.unitNumber}</p>
+                  )}
                 </div>
                 <div>
                   <label htmlFor="u-type" className="mb-1 block text-xs font-medium">
@@ -638,6 +656,9 @@ export function UnitsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES' | 'AC
                     placeholder="شقة / فيلا / دوبلكس"
                     className="min-h-[42px] w-full rounded border border-[#E2DDD3] px-3 text-sm"
                   />
+                  {formFieldErrors.type && (
+                    <p className="mt-1 text-xs text-[#B91C1C]">{formFieldErrors.type}</p>
+                  )}
                 </div>
               </div>
 
@@ -656,6 +677,9 @@ export function UnitsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES' | 'AC
                     onChange={(e) => setFormArea(e.target.value)}
                     className="min-h-[42px] w-full rounded border border-[#E2DDD3] px-3 text-sm tabular-nums"
                   />
+                  {formFieldErrors.area && (
+                    <p className="mt-1 text-xs text-[#B91C1C]">{formFieldErrors.area}</p>
+                  )}
                 </div>
                 <div>
                   <label htmlFor="u-rooms" className="mb-1 block text-xs font-medium">
@@ -671,6 +695,9 @@ export function UnitsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES' | 'AC
                     onChange={(e) => setFormRooms(e.target.value)}
                     className="min-h-[42px] w-full rounded border border-[#E2DDD3] px-3 text-sm tabular-nums"
                   />
+                  {formFieldErrors.rooms && (
+                    <p className="mt-1 text-xs text-[#B91C1C]">{formFieldErrors.rooms}</p>
+                  )}
                 </div>
               </div>
 
@@ -689,6 +716,9 @@ export function UnitsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES' | 'AC
                   onChange={(e) => setFormPrice(e.target.value)}
                   className="min-h-[42px] w-full rounded border border-[#E2DDD3] px-3 text-sm tabular-nums disabled:bg-[#F3F4F6]"
                 />
+                {formFieldErrors.price && (
+                  <p className="mt-1 text-xs text-[#B91C1C]">{formFieldErrors.price}</p>
+                )}
                 {editingUnit && editingUnit.status !== 'AVAILABLE' && (
                   <p className="mt-1 text-xs text-[#A16207]">
                     لا يمكن تعديل السعر لأن الوحدة محجوزة أو مباعة.

@@ -36,6 +36,7 @@ export function ReservationsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES
   const [installmentCount, setInstallmentCount] = useState('12');
   const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [draftError, setDraftError] = useState<string | null>(null);
+  const [draftFieldErrors, setDraftFieldErrors] = useState<Record<string, string>>({});
   const [creatingDraft, setCreatingDraft] = useState(false);
 
   useEffect(() => {
@@ -68,20 +69,31 @@ export function ReservationsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES
     setInstallmentCount('12');
     setStartDate(new Date().toISOString().slice(0, 10));
     setDraftError(null);
+    setDraftFieldErrors({});
   }
 
   async function handleCreateDraft(e: FormEvent) {
     e.preventDefault();
     if (!draftFor) return;
     setDraftError(null);
+    setDraftFieldErrors({});
 
     let discountMinor: string;
     let downMinor: string;
     try {
       discountMinor = majorInputToMinorString(discountInput || '0');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'قيمة خصم غير صالحة';
+      setDraftError(msg);
+      setDraftFieldErrors({ discount: msg });
+      return;
+    }
+    try {
       downMinor = majorInputToMinorString(downPaymentInput || '0');
     } catch (err) {
-      setDraftError(err instanceof Error ? err.message : 'قيم مالية غير صالحة');
+      const msg = err instanceof Error ? err.message : 'قيمة دفعة أولى غير صالحة';
+      setDraftError(msg);
+      setDraftFieldErrors({ downPayment: msg });
       return;
     }
 
@@ -98,8 +110,15 @@ export function ReservationsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES
           startDate,
         }),
       });
-      const data = (await res.json()) as { contract?: { id: string }; error?: string };
+      const data = (await res.json()) as {
+        contract?: { id: string };
+        error?: string;
+        fieldErrors?: Record<string, string>;
+      };
       if (!res.ok || !data.contract) {
+        if (data.fieldErrors) {
+          setDraftFieldErrors(data.fieldErrors);
+        }
         setDraftError(data.error ?? 'تعذر إنشاء مسودة العقد');
         return;
       }
@@ -275,6 +294,9 @@ export function ReservationsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES
                   onChange={(e) => setDiscountInput(e.target.value)}
                   className="min-h-[42px] w-full rounded border border-[#E2DDD3] px-3 text-sm tabular-nums"
                 />
+                {draftFieldErrors.discount && (
+                  <p className="mt-1 text-xs text-[#B91C1C]">{draftFieldErrors.discount}</p>
+                )}
               </div>
 
               <div>
@@ -291,6 +313,9 @@ export function ReservationsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES
                   onChange={(e) => setDownPaymentInput(e.target.value)}
                   className="min-h-[42px] w-full rounded border border-[#E2DDD3] px-3 text-sm tabular-nums"
                 />
+                {draftFieldErrors.downPayment && (
+                  <p className="mt-1 text-xs text-[#B91C1C]">{draftFieldErrors.downPayment}</p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -309,6 +334,9 @@ export function ReservationsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES
                     onChange={(e) => setInstallmentCount(e.target.value)}
                     className="min-h-[42px] w-full rounded border border-[#E2DDD3] px-3 text-sm tabular-nums"
                   />
+                  {draftFieldErrors.installmentCount && (
+                    <p className="mt-1 text-xs text-[#B91C1C]">{draftFieldErrors.installmentCount}</p>
+                  )}
                 </div>
                 <div>
                   <label htmlFor="cd-start" className="mb-1 block text-xs font-medium">
@@ -323,6 +351,9 @@ export function ReservationsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES
                     onChange={(e) => setStartDate(e.target.value)}
                     className="min-h-[42px] w-full rounded border border-[#E2DDD3] px-3 text-sm tabular-nums"
                   />
+                  {draftFieldErrors.startDate && (
+                    <p className="mt-1 text-xs text-[#B91C1C]">{draftFieldErrors.startDate}</p>
+                  )}
                 </div>
               </div>
 

@@ -24,6 +24,7 @@ export function ClientsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES' | '
   const [phone, setPhone] = useState('');
   const [notes, setNotes] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
+  const [formFieldErrors, setFormFieldErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
   const loadClients = useCallback(async () => {
@@ -70,6 +71,7 @@ export function ClientsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES' | '
   async function handleCreateClient(e: FormEvent) {
     e.preventDefault();
     setFormError(null);
+    setFormFieldErrors({});
     setSaving(true);
     try {
       const res = await fetch('/api/clients', {
@@ -81,8 +83,14 @@ export function ClientsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES' | '
           notes: notes.trim(),
         }),
       });
-      const data = (await res.json()) as { error?: string };
+      const data = (await res.json()) as {
+        error?: string;
+        fieldErrors?: Record<string, string>;
+      };
       if (!res.ok) {
+        if (data.fieldErrors) {
+          setFormFieldErrors(data.fieldErrors);
+        }
         setFormError(data.error ?? 'تعذر إضافة العميل');
         return;
       }
@@ -116,6 +124,7 @@ export function ClientsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES' | '
             type="button"
             onClick={() => {
               setFormError(null);
+              setFormFieldErrors({});
               setModalOpen(true);
             }}
             className="inline-flex min-h-[44px] items-center gap-2 rounded bg-[#14533C] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0F402E]"
@@ -240,6 +249,9 @@ export function ClientsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES' | '
                   onChange={(e) => setName(e.target.value)}
                   className="min-h-[42px] w-full rounded border border-[#E2DDD3] px-3 text-sm"
                 />
+                {formFieldErrors.name && (
+                  <p className="mt-1 text-xs text-[#B91C1C]">{formFieldErrors.name}</p>
+                )}
               </div>
               <div>
                 <label htmlFor="c-phone" className="mb-1 block text-xs font-medium">
@@ -253,6 +265,9 @@ export function ClientsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES' | '
                   onChange={(e) => setPhone(e.target.value)}
                   className="min-h-[42px] w-full rounded border border-[#E2DDD3] px-3 text-sm tabular-nums"
                 />
+                {formFieldErrors.phone && (
+                  <p className="mt-1 text-xs text-[#B91C1C]">{formFieldErrors.phone}</p>
+                )}
               </div>
               <div>
                 <label htmlFor="c-notes" className="mb-1 block text-xs font-medium">
@@ -265,6 +280,9 @@ export function ClientsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES' | '
                   onChange={(e) => setNotes(e.target.value)}
                   className="w-full rounded border border-[#E2DDD3] p-3 text-sm"
                 />
+                {formFieldErrors.notes && (
+                  <p className="mt-1 text-xs text-[#B91C1C]">{formFieldErrors.notes}</p>
+                )}
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button

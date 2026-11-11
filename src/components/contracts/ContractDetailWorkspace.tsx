@@ -95,6 +95,7 @@ export function ContractDetailWorkspace({
   const [confirmPaymentOpen, setConfirmPaymentOpen] = useState(false);
   const [recordingPayment, setRecordingPayment] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [paymentFieldError, setPaymentFieldError] = useState<string | null>(null);
   const [lastPaymentResult, setLastPaymentResult] = useState<PaymentSuccessResult | null>(null);
 
   const loadContract = useCallback(async () => {
@@ -165,28 +166,36 @@ export function ContractDetailWorkspace({
   function handleOpenPaymentConfirm(e: FormEvent) {
     e.preventDefault();
     setPaymentError(null);
+    setPaymentFieldError(null);
     try {
       const minor = majorInputToMinorString(payAmountInput);
       if (BigInt(minor) <= 0n) {
-        setPaymentError('مبلغ الدفعة يجب أن يكون أكبر من صفر');
+        const msg = 'مبلغ الدفعة يجب أن يكون أكبر من صفر';
+        setPaymentError(msg);
+        setPaymentFieldError(msg);
         return;
       }
       setConfirmPaymentOpen(true);
     } catch (err) {
-      setPaymentError(err instanceof Error ? err.message : 'مبلغ غير صالح');
+      const msg = err instanceof Error ? err.message : 'مبلغ غير صالح';
+      setPaymentError(msg);
+      setPaymentFieldError(msg);
     }
   }
 
   async function handleSubmitPayment() {
     if (!contract) return;
     setPaymentError(null);
+    setPaymentFieldError(null);
     setRecordingPayment(true);
 
     let minorStr: string;
     try {
       minorStr = majorInputToMinorString(payAmountInput);
     } catch (err) {
-      setPaymentError(err instanceof Error ? err.message : 'مبلغ غير صالح');
+      const msg = err instanceof Error ? err.message : 'مبلغ غير صالح';
+      setPaymentError(msg);
+      setPaymentFieldError(msg);
       setRecordingPayment(false);
       setConfirmPaymentOpen(false);
       return;
@@ -205,8 +214,12 @@ export function ContractDetailWorkspace({
       const data = (await res.json()) as {
         payment?: PaymentSuccessResult;
         error?: string;
+        fieldErrors?: Record<string, string>;
       };
       if (!res.ok || !data.payment) {
+        if (data.fieldErrors?.amount) {
+          setPaymentFieldError(data.fieldErrors.amount);
+        }
         setPaymentError(data.error ?? 'تعذر تسجيل الدفعة');
         setConfirmPaymentOpen(false);
         return;
@@ -405,6 +418,9 @@ export function ContractDetailWorkspace({
                 disabled={recordingPayment}
                 className="min-h-[44px] w-full rounded border border-[#E2DDD3] px-3 text-sm tabular-nums"
               />
+              {paymentFieldError && (
+                <p className="mt-1 text-xs text-[#B91C1C]">{paymentFieldError}</p>
+              )}
             </div>
 
             <button

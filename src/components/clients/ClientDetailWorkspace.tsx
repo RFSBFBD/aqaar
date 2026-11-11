@@ -26,6 +26,7 @@ export function ClientDetailWorkspace({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -57,6 +58,7 @@ export function ClientDetailWorkspace({
   async function handleSave(e: FormEvent) {
     e.preventDefault();
     setErrorMsg(null);
+    setFieldErrors({});
     setSuccessMsg(null);
     setSaving(true);
 
@@ -70,8 +72,15 @@ export function ClientDetailWorkspace({
           notes: notes.trim(),
         }),
       });
-      const data = (await res.json()) as { client?: ClientDetail; error?: string };
+      const data = (await res.json()) as {
+        client?: ClientDetail;
+        error?: string;
+        fieldErrors?: Record<string, string>;
+      };
       if (!res.ok || !data.client) {
+        if (data.fieldErrors) {
+          setFieldErrors(data.fieldErrors);
+        }
         setErrorMsg(data.error ?? 'تعذر تحديث بيانات العميل');
         return;
       }
@@ -140,6 +149,9 @@ export function ClientDetailWorkspace({
                   onChange={(e) => setName(e.target.value)}
                   className="min-h-[42px] w-full rounded border border-[#E2DDD3] px-3 text-sm"
                 />
+                {fieldErrors.name && (
+                  <p className="mt-1 text-xs text-[#B91C1C]">{fieldErrors.name}</p>
+                )}
               </div>
               <div>
                 <label htmlFor="cd-phone" className="mb-1 block text-xs font-medium">
@@ -153,6 +165,9 @@ export function ClientDetailWorkspace({
                   onChange={(e) => setPhone(e.target.value)}
                   className="min-h-[42px] w-full rounded border border-[#E2DDD3] px-3 text-sm tabular-nums"
                 />
+                {fieldErrors.phone && (
+                  <p className="mt-1 text-xs text-[#B91C1C]">{fieldErrors.phone}</p>
+                )}
               </div>
               <div>
                 <label htmlFor="cd-notes" className="mb-1 block text-xs font-medium">
@@ -165,6 +180,9 @@ export function ClientDetailWorkspace({
                   onChange={(e) => setNotes(e.target.value)}
                   className="w-full rounded border border-[#E2DDD3] p-3 text-sm"
                 />
+                {fieldErrors.notes && (
+                  <p className="mt-1 text-xs text-[#B91C1C]">{fieldErrors.notes}</p>
+                )}
               </div>
               <button
                 type="submit"
