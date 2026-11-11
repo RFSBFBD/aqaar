@@ -76,6 +76,16 @@ describe('Phase 1 Integration Tests — Auth, Sessions & Seed Isolation (Postgre
     expect(wrongPassErr).toBeInstanceOf(AuthError);
     expect(unknownErr?.message).toBe(wrongPassErr?.message);
     expect(unknownErr?.statusCode).toBe(401);
+
+    const failedAudit = await prisma.auditLog.findFirst({
+      where: {
+        companyId: 'cmp_nukhba_a',
+        userId: 'usr_a_admin',
+        action: 'LOGIN_FAILED',
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(failedAudit).not.toBeNull();
   });
 
   it('rejects expired sessions', async () => {

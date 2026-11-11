@@ -50,6 +50,16 @@ export async function loginWithCredentials(
 
   if (!user || !passwordValid) {
     await recordLoginAttempt(normalizedEmail, ipAddress, false);
+    if (user) {
+      await recordAuditLog({
+        companyId: user.companyId,
+        userId: user.id,
+        action: 'LOGIN_FAILED',
+        entityType: 'Session',
+        entityId: user.id,
+        details: { ipAddress },
+      });
+    }
     throw new AuthError(GENERIC_LOGIN_ERROR, 401);
   }
 
