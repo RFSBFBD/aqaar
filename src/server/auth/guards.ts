@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { validateSession, type SessionUser, type ValidSession } from './session';
 
 const SESSION_COOKIE_NAME = 'aqar_session';
@@ -23,6 +24,17 @@ export async function getCurrentSession(): Promise<ValidSession | null> {
   }
 
   return validateSession(sessionCookie.value);
+}
+
+/**
+ * Requires an authenticated user inside a Server Component page, redirecting to /login if missing.
+ */
+export async function requirePageUser(): Promise<SessionUser> {
+  const result = await getCurrentSession();
+  if (!result) {
+    redirect('/login');
+  }
+  return result.user;
 }
 
 /**

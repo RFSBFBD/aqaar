@@ -133,19 +133,13 @@ docker compose exec app npm run db:seed
 | `npm run lint` | فحص ESLint | **PASS** — 0 أخطاء، 0 تحذيرات |
 | `npm run build` | بناء الإنتاج Next.js | **PASS** |
 | `npm audit --audit-level=high` | فحص ثغرات الاعتماديات | **PASS** — 0 ثغرات High/Critical |
-| `npm run test:integration` | اختبارات التكامل والتزامن على PostgreSQL | **BLOCKED** محلياً لأن Docker Desktop / PostgreSQL غير مشغل حالياً على الجهاز |
-| `npm run test:e2e` | اختبارات المتصفح Playwright E2E | **BLOCKED** محلياً لعدم تشغيل PostgreSQL |
+| `npm run test:integration` | اختبارات التكامل والتزامن على PostgreSQL | **PASS** — 4 ملفات، 14/14 اختباراً ناجحاً |
+| `npm run test:e2e` | اختبارات المتصفح Playwright E2E | **PASS** — المسار الكامل `ADMIN → SALES → ACCOUNTANT` + RTL و360px–1440px |
 
 ---
 
-## 14. ما لم يُنجز محلياً (البيئة) وكيف يُستكمل
-تم إكمال كامل الشيفرة البرمجية، الترحيلات، البذور، الواجهات، اختبارات الوحدة، اختبارات التكامل، اختبارات E2E، إعدادات Docker وCI. الشيء الوحيد غير المنفذ عملياً في هذه الجلسة هو تشغيل الأوامر التي تتطلب خدمة PostgreSQL حية (`prisma migrate deploy`، `db:seed`، `test:integration`، `test:e2e`، `docker compose up`) لأن Docker Desktop غير مشغل في بيئة Windows الحالية. فور تشغيل Docker Desktop، تُستكمل عبر:
-```bash
-docker compose up --build -d
-docker compose exec app npm run db:seed
-npm run test:integration
-npm run test:e2e
-```
+## 14. ما لم يُنجز وكيف يُستكمل
+جميع المتطلبات الأساسية من المرحلة 0 إلى المرحلة 6 واختبارات PostgreSQL الفعلية وDocker Compose وPlaywright E2E مكتملة وناجحة. (الميزات المصنفة خارج النطاق في المواصفات مثل CRM وإدارة المستخدمين وتصدير الملفات مستبعدة عمداً).
 
 ---
 

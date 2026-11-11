@@ -84,8 +84,8 @@ export function AppShell({
       <div className="mx-auto flex max-w-[1440px]">
         {/* Sidebar */}
         <aside
-          className={`fixed inset-y-0 right-0 z-40 w-64 shrink-0 border-l border-[#E2DDD3] bg-white transition-transform lg:static lg:block lg:translate-x-0 ${
-            mobileOpen ? 'translate-x-0' : 'translate-x-full'
+          className={`fixed inset-y-0 right-0 z-40 w-64 shrink-0 border-l border-[#E2DDD3] bg-white lg:static lg:block ${
+            mobileOpen ? 'block' : 'hidden'
           }`}
         >
           <div className="flex h-full flex-col justify-between p-5">

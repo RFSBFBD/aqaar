@@ -2,71 +2,51 @@
 
 **Date:** 2026-11-11  
 **Specification:** `RA-HR-2026-1110`  
-**Overall Gate Decision:** **BLOCKED** (Environment Blocker: Docker Desktop / PostgreSQL daemon not running locally)
-
-> Per `08_FINAL_INDEPENDENT_ACCEPTANCE_AUDIT.md`, PASS cannot be granted until concurrency tests on real PostgreSQL, tenant isolation integration tests, and clean `docker compose up` have been executed against a live PostgreSQL instance.
+**Overall Gate Decision:** **PASS** (All unit, PostgreSQL integration, Playwright E2E, live HTTP security, Docker Compose, and production build checks executed and passed)
 
 ---
 
-## 1. Requirements & Code Implementation Status
-All 56 in-scope mandatory requirements (`REQ-001` – `REQ-056`) are implemented in code, database migrations, seed, API routes, Arabic RTL UI, Docker, and CI configurations, and REQ-057 out-of-scope items remain excluded.
+## 1. Requirements & Phase Gate Summary
+All 56 in-scope mandatory requirements (`REQ-001` – `REQ-056`) are implemented and verified across code, PostgreSQL migrations/triggers, seed, APIs, Arabic RTL UI, Docker Compose, and CI, while REQ-057 out-of-scope items remain excluded.
 
-| Phase | Code / Docs / Static Checks | Live Runtime / DB Gate |
-|-------|-----------------------------|------------------------|
+| Phase | Static / Unit Gate | Live Runtime / DB / Browser Gate |
+|-------|-------------------|----------------------------------|
 | Phase 0 (Discovery, Domain Rules, Proofs) | **PASS** (37/37 unit tests) | N/A |
-| Phase 1 (Foundation, Prisma 7, Migration SQL, Seed, Auth) | **PASS** (schema valid, client generated, unit tests pass, build passes) | **BLOCKED** (live `migrate deploy`, `db:seed`, `phase1-auth.integration.test.ts`) |
-| Phase 2 (Tenant Isolation, Units, Clients, Reservations) | **PASS** (code, Zod validation unit tests, build pass) | **BLOCKED** (live `phase2-tenancy-units-clients-reservations.integration.test.ts`) |
-| Phase 3 (Contracts, Approval, Installments, FIFO Payments) | **PASS** (financial/date unit proofs, validation, build pass) | **BLOCKED** (live `phase3-contracts-payments.integration.test.ts`) |
-| Phase 4 (Arabic RTL UI & Responsive UX) | **PASS** (0 lint errors, 0 TS errors, production build passes) | **BLOCKED** (live Playwright browser screenshots/flows) |
-| Phase 5 (Security Review, Integration & E2E Specs) | **PASS** (`docs/SECURITY_REVIEW.md`, `npm audit` 0 High/Critical, specs authored) | **BLOCKED** (`test:integration`, `test:e2e`) |
-| Phase 6 (Docker, CI, README, Git Hygiene) | **PASS** (`Dockerfile`, `docker-compose.yml`, `.github/workflows/ci.yml`, `README.md`, `.env` ignored) | **BLOCKED** (`docker compose up` clean run) |
+| Phase 1 (Foundation, Prisma 7, Migrations, Seed, Auth) | **PASS** | **PASS** (`prisma migrate deploy`, double idempotent `db:seed`, 5/5 `phase1-auth.integration.test.ts`) |
+| Phase 2 (Tenant Isolation, Units, Clients, Reservations) | **PASS** | **PASS** (5/5 `phase2-tenancy-units-clients-reservations.integration.test.ts`, including 10 concurrent reservations → 1 winner) |
+| Phase 3 (Contracts, Approval, Installments, FIFO Payments) | **PASS** | **PASS** (1/1 comprehensive `phase3-contracts-payments.integration.test.ts` including DB triggers & concurrent payments) |
+| Phase 4 (Arabic RTL UI & Responsive UX) | **PASS** | **PASS** (Playwright E2E + visual inspection of desktop & 360px mobile screenshots after `BUG-010` fix) |
+| Phase 5 (Security Review, Integration & E2E) | **PASS** | **PASS** (3/3 `phase5-security-attack.integration.test.ts` + live HTTP security checks + Playwright E2E) |
+| Phase 6 (Docker, CI, README, Git Hygiene) | **PASS** | **PASS** (`docker compose up --build -d`, `postgres` healthy, `app` healthy, `/api/health` → `ok/connected`) |
 
 ---
 
 ## 2. Commands Actually Executed & Observed Results
-- `git check-ignore -v .env` → **PASS** (`.gitignore:27:.env`)
-- `npx prisma validate` → **PASS** (Prisma CLI v7.10.1, `prisma.config.ts`)
+- `docker compose up --build -d` (`POSTGRES_PORT=5433` on host to avoid collision with unrelated port 5432 container; internal `postgres:5432`) → **PASS** (`aqar-elite-postgres` healthy, `aqar-elite-app` healthy, migration `20261111000000_init` applied cleanly)
+- `Invoke-RestMethod http://localhost:3000/api/health` → **PASS** (`{ status: "ok", database: "connected" }`)
+- `docker compose exec -T app npm run db:seed` (executed twice) → **PASS** (`companies: 2, users: 8, units: 5, clients: 4` — strictly idempotent)
 - `npm run lint` (`eslint .`) → **PASS** (0 errors, 0 warnings)
 - `npm run typecheck` (`tsc --noEmit`) → **PASS** (0 errors)
-- `npm test` (`vitest run`) → **PASS** (8 files, 51/51 tests passed)
+- `npm test` (`vitest run`) → **PASS** (8 files, **51/51 tests passed**)
+- `npm run test:integration` (`vitest run --config vitest.integration.config.mts` against live PostgreSQL) → **PASS** (4 files, **14/14 tests passed**)
+- `npm run test:e2e` (`playwright test` against live Docker app at `http://localhost:3000`) → **PASS** (**1/1 end-to-end ADMIN → SALES → ACCOUNTANT workflow passed**, 0 uncaught page errors, 0 overflow at 360/390/768/1280/1440px)
+- Live HTTP security audit against `http://localhost:3000` → **PASS** (10/10 checks: headers, 401 unauth, `HttpOnly`/`SameSite=Lax`, CSRF 403, IDOR 404, role escalation 403, logout replay 401)
 - `npm run build` (`next build`) → **PASS**
-- `npm audit --audit-level=high` → **PASS** (0 High/Critical; 9 moderate in eslint/minimatch devDependencies)
-- Forbidden pattern scan (`: any`, `as any`, `@ts-ignore`, `dangerouslySetInnerHTML`, `localStorage` in `src/`) → **PASS** (0 matches)
-- `npm run test:integration` → **BLOCKED** (Docker daemon not running / port 5432 closed)
-- `npm run test:e2e` → **BLOCKED** (requires running app + PostgreSQL)
-- `docker compose up` → **BLOCKED** (Docker daemon not running)
+- `npm audit --audit-level=high` → **PASS** (0 High/Critical)
+- `git check-ignore -v .env` → **PASS**
 
 ---
 
-## 3. Financial Correctness Audit (Code & Unit Proofs)
-- Zero floating-point types used for monetary amounts (`BigInt` in domain, Prisma, PostgreSQL `BIGINT`; decimal strings in JSON & UI).
-- `downPayment + sum(installments) === finalPrice` verified via unit tests and `CHECK` constraints in `migration.sql`.
-- Deterministic remainder distribution (`+1` to first `remainder` installments) verified (`100000 / 3 -> [33334, 33333, 33333]`).
-- FIFO payment allocation, overpayment rejection, and Jan 31 UTC date clamping verified (`2025-01-31 -> 2025-02-28 -> 2025-03-31`, leap year `2024-02-29`).
+## 3. Defects Found & Resolved During Live Verification
+- **BUG-006:** Docker build `npx prisma generate` failed without `DATABASE_URL` → Fixed in `Dockerfile` with build-only placeholder URL (runtime still strictly requires real `DATABASE_URL`).
+- **BUG-007:** `package.json` `test:integration` referenced `.ts` instead of `.mts` → Fixed to `vitest.integration.config.mts`.
+- **BUG-008:** Mutating API routes validated request body before checking role (`400` instead of `403` for unauthorized payload) → Added role guards before Zod parsing in mutating Route Handlers.
+- **BUG-009:** `src/lib/prisma.ts` only cached `pg.Pool` in non-production, exhausting PostgreSQL connections under `next start` (`Too many clients already`) → Cached singleton `pg.Pool` (`max: 10`) and `PrismaClient` on `globalThis` in all environments, and added `requirePageUser()` for clean SSR `/login` redirects.
+- **BUG-010:** Mobile sidebar drawer overlapped 360px viewport when closed (`translate-x-full` without `hidden`) → Changed to `hidden lg:block` when closed and re-verified visually in `test-results/e2e-04-mobile-360px.png`.
 
 ---
 
-## 4. Security Findings & Residual Risks
-- 0 Critical or High code-level issues found in static review (`docs/SECURITY_REVIEW.md`).
-- Database triggers (`payments_append_only`, `payment_allocations_append_only`, `contracts_immutable_after_approval`) and partial unique index (`reservations_one_active_per_unit`) are authored in `prisma/migrations/20261111000000_init/migration.sql` and pending live PostgreSQL verification.
-- In local Docker HTTP testing (`http://localhost:3000`), `docker-compose.yml` defaults `COOKIE_SECURE=false`; production HTTPS deployments must set `COOKIE_SECURE=true` and rotate `SESSION_SECRET`.
-
----
-
-## 5. Exact Steps to Unblock & Grant Final PASS
-1. Start **Docker Desktop** on Windows.
-2. Run:
-   ```bash
-   docker compose up --build -d
-   docker compose exec app npm run db:seed
-   docker compose exec app npm run db:seed
-   ```
-3. Run live integration & E2E suites against PostgreSQL:
-   ```bash
-   npm run db:migrate
-   npm run db:seed
-   npm run test:integration
-   npx playwright install chromium
-   npm run test:e2e
-   ```
-4. Once all live checks pass, update this report's decision to **PASS**.
+## 4. Known Limitations / Residual Notes
+- Host port `5433` was passed during this machine's verification (`POSTGRES_PORT=5433`) solely because an unrelated container already bound host port `5432`; on a clean host, `docker compose up` uses standard `5432` by default.
+- Local Docker HTTP uses `COOKIE_SECURE=false`; production HTTPS deployments must set `COOKIE_SECURE=true` and rotate `SESSION_SECRET` and database credentials.
+- `docker-compose.yml` uses `aqar-elite-postgres` / `aqar-elite-app`; ready for submission (`PASS`).

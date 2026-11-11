@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantContext } from '@/server/auth';
+import { AuthError } from '@/server/auth/guards';
 import { createUnitSchema, unitQuerySchema } from '@/server/validation/unit';
 import { createUnit, listUnits } from '@/server/services/unit.service';
 import { assertCsrfSafe } from '@/server/http/csrf';
@@ -29,6 +30,9 @@ export async function POST(request: NextRequest) {
   try {
     assertCsrfSafe(request);
     const ctx = await getTenantContext();
+    if (ctx.userRole !== 'ADMIN') {
+      throw new AuthError('إضافة الوحدات متاحة للمدير فقط', 403);
+    }
     const body = await request.json();
     const input = createUnitSchema.parse(body);
     const unit = await createUnit(ctx, input);

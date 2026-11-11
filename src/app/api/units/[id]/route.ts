@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantContext } from '@/server/auth';
+import { AuthError } from '@/server/auth/guards';
 import { updateUnitSchema } from '@/server/validation/unit';
 import { getUnitDetail, updateUnit } from '@/server/services/unit.service';
 import { assertCsrfSafe } from '@/server/http/csrf';
@@ -26,6 +27,9 @@ export async function PATCH(
   try {
     assertCsrfSafe(request);
     const ctx = await getTenantContext();
+    if (ctx.userRole !== 'ADMIN') {
+      throw new AuthError('تعديل الوحدات متاح للمدير فقط', 403);
+    }
     const { id } = await params;
     const body = await request.json();
     const input = updateUnitSchema.parse(body);

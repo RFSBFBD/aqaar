@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantContext } from '@/server/auth';
+import { AuthError } from '@/server/auth/guards';
 import { createPaymentSchema } from '@/server/validation/payment';
 import { recordPayment } from '@/server/services/payment.service';
 import { assertCsrfSafe } from '@/server/http/csrf';
@@ -9,6 +10,9 @@ export async function POST(request: NextRequest) {
   try {
     assertCsrfSafe(request);
     const ctx = await getTenantContext();
+    if (ctx.userRole !== 'ACCOUNTANT') {
+      throw new AuthError('تسجيل الدفعات متاح للمحاسب فقط', 403);
+    }
     const body = await request.json();
     const input = createPaymentSchema.parse(body);
     const payment = await recordPayment(ctx, input);

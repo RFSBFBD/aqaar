@@ -1,11 +1,11 @@
-import { requireAuthenticatedUser } from '@/server/auth';
+import { requirePageUser } from '@/server/auth';
 import { listAuditLogs } from '@/server/services/audit.service';
 import { formatUtcDateTime } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AuditLogsPage() {
-  const user = await requireAuthenticatedUser();
+  const user = await requirePageUser();
 
   if (user.role !== 'ADMIN') {
     return (

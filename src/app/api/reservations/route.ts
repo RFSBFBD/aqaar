@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantContext } from '@/server/auth';
+import { AuthError } from '@/server/auth/guards';
 import { createReservationSchema } from '@/server/validation/reservation';
 import { createReservation, listReservations } from '@/server/services/reservation.service';
 import { assertCsrfSafe } from '@/server/http/csrf';
@@ -19,6 +20,9 @@ export async function POST(request: NextRequest) {
   try {
     assertCsrfSafe(request);
     const ctx = await getTenantContext();
+    if (ctx.userRole !== 'SALES') {
+      throw new AuthError('إنشاء الحجز متاح لمندوب المبيعات فقط', 403);
+    }
     const body = await request.json();
     const input = createReservationSchema.parse(body);
     const reservation = await createReservation(ctx, input);

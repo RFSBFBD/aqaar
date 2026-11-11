@@ -33,3 +33,33 @@ Tracks discovered bugs, configuration defects, root causes, fixes, and regressio
 - **Discovered:** 2026-11-11 during recovery inspection
 - **Root Cause:** Interrupted Phase 0 subagent referenced `src/lib/auth/*` and Argon2id, whereas actual code was written to `src/server/auth/*` using `bcryptjs`.
 - **Status:** Open (will align documentation in Phase 0 completion).
+
+## BUG-006: Docker image build fails at `npx prisma generate` due to `prisma.config.ts` requiring `DATABASE_URL`
+- **Discovered:** 2026-11-11 during live `docker compose up --build -d` verification
+- **Root Cause:** Prisma 7 `prisma.config.ts` evaluates `env('DATABASE_URL')` even during `prisma generate`, and `.dockerignore` excludes `.env`.
+- **Fix:** Passed a dummy build-only URL `DATABASE_URL="postgresql://build:build@localhost:5432/build" npx prisma generate` in `Dockerfile` (no real secret baked into image; runtime still uses Compose/env `DATABASE_URL`).
+- **Status:** Fix applied; verifying Docker build & startup.
+
+## BUG-007: `package.json` `test:integration` pointed to `.ts` instead of `.mts`
+- **Discovered:** 2026-11-11 during live integration test execution (`npm run test:integration`)
+- **Root Cause:** `package.json` had `--config vitest.integration.config.ts` while the config file is `vitest.integration.config.mts`.
+- **Fix:** Updated `package.json` script to `vitest run --config vitest.integration.config.mts`.
+- **Status:** Fix applied; verifying integration suite.
+
+## BUG-008: Role check ran after Zod payload parsing in mutating API routes
+- **Discovered:** 2026-11-11 during live HTTP security audit against `http://localhost:3000`
+- **Root Cause:** `POST /api/units` parsed `createUnitSchema` before checking `ctx.userRole === 'ADMIN'`, causing unauthorized `SALES` users with invalid payload fields to receive `400` instead of `403`.
+- **Fix:** Added explicit role guards immediately after `getTenantContext()` before body parsing in `units`, `units/[id]`, `clients`, `clients/[id]`, `reservations`, `contracts`, and `payments` route handlers.
+- **Status:** Fix applied; rebuilding Docker `app` container and re-running HTTP security audit + E2E.
+
+## BUG-009: PostgreSQL connection pool exhaustion in Next.js production mode (`Too many clients already`)
+- **Discovered:** 2026-11-11 during live Playwright E2E test against Docker production build (`next start`)
+- **Root Cause:** `src/lib/prisma.ts` only cached `globalForPrisma.prisma` and `globalForPrisma.pgPool` when `NODE_ENV !== 'production'`. In Next.js production server chunks, repeated calls created multiple `pg.Pool` instances without sharing the singleton pool, exhausting PostgreSQL connections. Also `(app)` SSR pages called `requireAuthenticatedUser()` (throwing 401) instead of redirecting cleanly.
+- **Fix:** Always cache `globalForPrisma.pgPool` (`max: 10`) and `globalForPrisma.prisma` on `globalThis` in both dev and production; added `requirePageUser()` for clean `/login` SSR redirects.
+- **Status:** Fix applied; rebuilding Docker `app` container and re-running E2E.
+
+## BUG-010: Closed mobile sidebar overlapped 360px viewport in full-page mobile screenshot
+- **Discovered:** 2026-11-11 during visual inspection of `test-results/e2e-04-mobile-360px.png`
+- **Root Cause:** `AppShell.tsx` used `translate-x-full` on `fixed right-0` `<aside>` when `!mobileOpen` without `hidden lg:block`, leaving the drawer visible in full-page / RTL mobile captures.
+- **Fix:** Switched closed mobile `<aside>` to `hidden lg:block` (`mobileOpen ? 'block' : 'hidden'`) so it is completely hidden when closed on mobile and always visible on `lg:` desktop.
+- **Status:** Fix applied; rebuilding Docker `app` container and re-verifying screenshot.

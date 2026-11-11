@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantContext } from '@/server/auth';
+import { AuthError } from '@/server/auth/guards';
 import { updateClientSchema } from '@/server/validation/client';
 import { getClientDetail, updateClient } from '@/server/services/client.service';
 import { assertCsrfSafe } from '@/server/http/csrf';
@@ -26,6 +27,9 @@ export async function PATCH(
   try {
     assertCsrfSafe(request);
     const ctx = await getTenantContext();
+    if (ctx.userRole !== 'SALES') {
+      throw new AuthError('تعديل بيانات العميل متاح لمندوب المبيعات فقط', 403);
+    }
     const { id } = await params;
     const body = await request.json();
     const input = updateClientSchema.parse(body);

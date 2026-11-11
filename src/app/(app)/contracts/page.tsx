@@ -1,9 +1,9 @@
-import { requireAuthenticatedUser } from '@/server/auth';
+import { requirePageUser } from '@/server/auth';
 import { ContractsListWorkspace } from '@/components/contracts/ContractsListWorkspace';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ContractsPage() {
-  await requireAuthenticatedUser();
+  await requirePageUser();
   return <ContractsListWorkspace />;
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantContext } from '@/server/auth';
+import { AuthError } from '@/server/auth/guards';
 import { createContractDraftSchema } from '@/server/validation/contract';
 import { createContractDraft, listContracts } from '@/server/services/contract.service';
 import { assertCsrfSafe } from '@/server/http/csrf';
@@ -19,6 +20,9 @@ export async function POST(request: NextRequest) {
   try {
     assertCsrfSafe(request);
     const ctx = await getTenantContext();
+    if (ctx.userRole !== 'SALES') {
+      throw new AuthError('إنشاء مسودة العقد متاح لمندوب المبيعات فقط', 403);
+    }
     const body = await request.json();
     const input = createContractDraftSchema.parse(body);
     const contract = await createContractDraft(ctx, input);
