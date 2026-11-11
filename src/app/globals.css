@@ -1,1 +1,29 @@
 @import "tailwindcss";
+
+:root {
+  --bg-canvas: #F7F5F0;
+  --bg-surface: #FFFFFF;
+  --bg-muted: #EFECE4;
+  --border-hairline: #E2DDD3;
+  --ink-primary: #1B2420;
+  --ink-secondary: #56615B;
+  --accent-primary: #14533C;
+  --accent-primary-hover: #0F402E;
+}
+
+html,
+body {
+  background-color: var(--bg-canvas);
+  color: var(--ink-primary);
+  font-family: "Segoe UI", "Tahoma", "Arial", sans-serif;
+  line-height: 1.6;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
