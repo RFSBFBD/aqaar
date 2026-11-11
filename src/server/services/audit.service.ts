@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { AuthError, type TenantContext } from '@/server/auth/guards';
 
 export interface AuditEntryInput {
   companyId: string;
@@ -8,6 +9,17 @@ export interface AuditEntryInput {
   entityType: string;
   entityId: string;
   details?: Record<string, unknown>;
+}
+
+export interface AuditLogDto {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  details: string;
+  userName: string;
+  userRole: string;
+  createdAt: string;
 }
 
 /**
@@ -29,4 +41,37 @@ export async function recordAuditLog(
       details: JSON.stringify(input.details ?? {}),
     },
   });
+}
+
+/**
+ * Lists company audit logs for ADMIN users only (read-only).
+ */
+export async function listAuditLogs(
+  ctx: TenantContext,
+  limit: number = 100
+): Promise<AuditLogDto[]> {
+  if (ctx.userRole !== 'ADMIN') {
+    throw new AuthError('عرض سجل التدقيق متاح للمدير فقط', 403);
+  }
+
+  const safeLimit = Math.min(Math.max(limit, 1), 200);
+  const rows = await prisma.auditLog.findMany({
+    where: { companyId: ctx.companyId },
+    include: {
+      user: { select: { name: true, role: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: safeLimit,
+  });
+
+  return rows.map((row) => ({
+    id: row.id,
+    action: row.action,
+    entityType: row.entityType,
+    entityId: row.entityId,
+    details: row.details,
+    userName: row.user.name,
+    userRole: row.user.role,
+    createdAt: row.createdAt.toISOString(),
+  }));
 }
