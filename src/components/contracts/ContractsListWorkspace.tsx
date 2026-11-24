@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Eye, AlertCircle } from 'lucide-react';
-import { formatMinorUnits } from '@/lib/format';
+import { formatCurrency, formatMinorUnits } from '@/lib/format';
 import { contractStatusBadge, unitStatusBadge } from '@/components/StatusBadge';
 
 interface ContractSummary {
@@ -83,8 +83,8 @@ export function ContractsListWorkspace() {
                 <tr>
                   <th className="px-4 py-3">الوحدة</th>
                   <th className="px-4 py-3">العميل</th>
-                  <th className="px-4 py-3">السعر النهائي</th>
-                  <th className="px-4 py-3">المتبقي</th>
+                  <th className="px-4 py-3">السعر النهائي (ر.س)</th>
+                  <th className="px-4 py-3">المتبقي (ر.س)</th>
                   <th className="px-4 py-3">الأقساط</th>
                   <th className="px-4 py-3">حالة العقد</th>
                   <th className="px-4 py-3">حالة الوحدة</th>
@@ -100,10 +100,10 @@ export function ContractsListWorkspace() {
                     </td>
                     <td className="px-4 py-3">{c.clientName}</td>
                     <td className="px-4 py-3 font-medium tabular-nums">
-                      {formatMinorUnits(c.finalPrice)}
+                      {formatCurrency(c.finalPrice)}
                     </td>
                     <td className="px-4 py-3 font-semibold text-[#14533C] tabular-nums">
-                      {formatMinorUnits(c.outstandingBalance)}
+                      {formatCurrency(c.outstandingBalance)}
                     </td>
                     <td className="px-4 py-3 tabular-nums">{c.installmentCount}</td>
                     <td className="px-4 py-3">{contractStatusBadge(c.status)}</td>
@@ -132,7 +132,7 @@ export function ContractsListWorkspace() {
                 </div>
                 <p className="text-sm">{c.clientName}</p>
                 <p className="text-sm text-[#56615B]">
-                  المتبقي: <strong className="text-[#14533C] tabular-nums">{formatMinorUnits(c.outstandingBalance)}</strong>
+                  المتبقي: <strong className="text-[#14533C] tabular-nums">{formatCurrency(c.outstandingBalance)}</strong>
                 </p>
                 <Link
                   href={`/contracts/${c.id}`}

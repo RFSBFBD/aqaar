@@ -4,7 +4,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FilePlus2, AlertCircle, Clock } from 'lucide-react';
-import { formatMinorUnits, formatUtcDateTime, majorInputToMinorString } from '@/lib/format';
+import { formatCurrency, formatMinorUnits, formatUtcDateTime, majorInputToMinorString } from '@/lib/format';
 import { reservationStatusBadge } from '@/components/StatusBadge';
 
 interface ReservationItem {
@@ -165,7 +165,7 @@ export function ReservationsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES
               <thead className="border-b border-[#E2DDD3] bg-[#F7F5F0] text-xs font-semibold text-[#56615B]">
                 <tr>
                   <th className="px-4 py-3">الوحدة</th>
-                  <th className="px-4 py-3">السعر</th>
+                  <th className="px-4 py-3">السعر (ر.س)</th>
                   <th className="px-4 py-3">العميل</th>
                   <th className="px-4 py-3">المندوب</th>
                   <th className="px-4 py-3">ينتهي في</th>
@@ -181,7 +181,7 @@ export function ReservationsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES
                       <p className="text-xs text-[#56615B]">{r.projectName}</p>
                     </td>
                     <td className="px-4 py-3 font-medium tabular-nums">
-                      {formatMinorUnits(r.unitPrice)}
+                      {formatCurrency(r.unitPrice)}
                     </td>
                     <td className="px-4 py-3">
                       <p>{r.clientName}</p>
@@ -271,7 +271,7 @@ export function ReservationsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES
               إنشاء مسودة عقد — وحدة {draftFor.unitNumber}
             </h2>
             <p className="mt-1 text-sm text-[#56615B]">
-              سعر الوحدة: <strong className="tabular-nums">{formatMinorUnits(draftFor.unitPrice)}</strong> (الحد الأقصى للخصم 5%)
+              سعر الوحدة: <strong className="tabular-nums">{formatCurrency(draftFor.unitPrice)}</strong> (الحد الأقصى للخصم 5%)
             </p>
 
             {draftError && (
@@ -283,7 +283,7 @@ export function ReservationsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES
             <form onSubmit={handleCreateDraft} className="mt-4 space-y-3">
               <div>
                 <label htmlFor="cd-discount" className="mb-1 block text-xs font-medium">
-                  قيمة الخصم (بحد أقصى 5% من السعر)
+                  قيمة الخصم (ر.س - بحد أقصى 5% من السعر)
                 </label>
                 <input
                   id="cd-discount"
@@ -301,7 +301,7 @@ export function ReservationsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES
 
               <div>
                 <label htmlFor="cd-down" className="mb-1 block text-xs font-medium">
-                  الدفعة الأولى
+                  الدفعة الأولى (ر.س)
                 </label>
                 <input
                   id="cd-down"

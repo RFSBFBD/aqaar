@@ -9,7 +9,7 @@ import {
   ShieldAlert,
   CreditCard,
 } from 'lucide-react';
-import { formatMinorUnits, majorInputToMinorString } from '@/lib/format';
+import { formatCurrency, formatMinorUnits, majorInputToMinorString } from '@/lib/format';
 import { generateIdempotencyKey } from '@/lib/uuid';
 import {
   contractStatusBadge,
@@ -332,29 +332,29 @@ export function ContractDetailWorkspace({
         <h2 className="mb-4 text-base font-bold">الملخص المالي</h2>
         <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
           <div>
-            <dt className="text-xs text-[#56615B]">سعر الوحدة</dt>
-            <dd className="mt-1 font-semibold tabular-nums">{formatMinorUnits(contract.unitPrice)}</dd>
+            <dt className="text-xs text-[#56615B]">سعر الوحدة (ر.س)</dt>
+            <dd className="mt-1 font-semibold tabular-nums">{formatCurrency(contract.unitPrice)}</dd>
           </div>
           <div>
-            <dt className="text-xs text-[#56615B]">الخصم</dt>
-            <dd className="mt-1 font-semibold tabular-nums">{formatMinorUnits(contract.discount)}</dd>
+            <dt className="text-xs text-[#56615B]">الخصم (ر.س)</dt>
+            <dd className="mt-1 font-semibold tabular-nums">{formatCurrency(contract.discount)}</dd>
           </div>
           <div>
-            <dt className="text-xs text-[#56615B]">السعر النهائي</dt>
-            <dd className="mt-1 font-bold tabular-nums">{formatMinorUnits(contract.finalPrice)}</dd>
+            <dt className="text-xs text-[#56615B]">السعر النهائي (ر.س)</dt>
+            <dd className="mt-1 font-bold tabular-nums">{formatCurrency(contract.finalPrice)}</dd>
           </div>
           <div>
-            <dt className="text-xs text-[#56615B]">الدفعة الأولى</dt>
-            <dd className="mt-1 font-semibold tabular-nums">{formatMinorUnits(contract.downPayment)}</dd>
+            <dt className="text-xs text-[#56615B]">الدفعة الأولى (ر.س)</dt>
+            <dd className="mt-1 font-semibold tabular-nums">{formatCurrency(contract.downPayment)}</dd>
           </div>
           <div>
-            <dt className="text-xs text-[#56615B]">إجمالي الأقساط</dt>
-            <dd className="mt-1 font-semibold tabular-nums">{formatMinorUnits(contract.remainingAmount)}</dd>
+            <dt className="text-xs text-[#56615B]">إجمالي الأقساط (ر.س)</dt>
+            <dd className="mt-1 font-semibold tabular-nums">{formatCurrency(contract.remainingAmount)}</dd>
           </div>
           <div>
-            <dt className="text-xs text-[#56615B]">المتبقي المستحق</dt>
+            <dt className="text-xs text-[#56615B]">المتبقي المستحق (ر.س)</dt>
             <dd className="mt-1 text-lg font-bold text-[#14533C] tabular-nums">
-              {formatMinorUnits(contract.outstandingBalance)}
+              {formatCurrency(contract.outstandingBalance)}
             </dd>
           </div>
         </dl>
@@ -389,12 +389,12 @@ export function ContractDetailWorkspace({
           {lastPaymentResult && (
             <div className="rounded border border-[#BBF7D0] bg-[#ECFDF5] p-3 text-sm text-[#15803D] space-y-1">
               <p className="font-semibold">
-                نتيجة توزيع الدفعة ({formatMinorUnits(lastPaymentResult.amount)}):
+                نتيجة توزيع الدفعة ({formatCurrency(lastPaymentResult.amount)}):
               </p>
               <ul className="list-inside list-disc text-xs">
                 {lastPaymentResult.allocations.map((a) => (
                   <li key={a.sequenceNumber} className="tabular-nums">
-                    قسط رقم #{a.sequenceNumber}: {formatMinorUnits(a.amount)}
+                    قسط رقم #{a.sequenceNumber}: {formatCurrency(a.amount)}
                   </li>
                 ))}
               </ul>
@@ -404,7 +404,7 @@ export function ContractDetailWorkspace({
           <form onSubmit={handleOpenPaymentConfirm} className="flex flex-wrap items-end gap-3">
             <div className="min-w-[220px] flex-1">
               <label htmlFor="pay-amount" className="mb-1 block text-xs font-medium text-[#56615B]">
-                مبلغ الدفعة (المتبقي الأقصى: {formatMinorUnits(contract.outstandingBalance)})
+                مبلغ الدفعة (ر.س) (المتبقي الأقصى: {formatCurrency(contract.outstandingBalance)})
               </label>
               <input
                 id="pay-amount"
@@ -449,9 +449,9 @@ export function ContractDetailWorkspace({
                 <tr>
                   <th className="px-3 py-2.5">#</th>
                   <th className="px-3 py-2.5">تاريخ الاستحقاق</th>
-                  <th className="px-3 py-2.5">قيمة القسط</th>
-                  <th className="px-3 py-2.5">المدفوع</th>
-                  <th className="px-3 py-2.5">المتبقي</th>
+                  <th className="px-3 py-2.5">قيمة القسط (ر.س)</th>
+                  <th className="px-3 py-2.5">المدفوع (ر.س)</th>
+                  <th className="px-3 py-2.5">المتبقي (ر.س)</th>
                   <th className="px-3 py-2.5">الحالة</th>
                 </tr>
               </thead>
@@ -462,10 +462,10 @@ export function ContractDetailWorkspace({
                     <td className="px-3 py-2.5 tabular-nums" dir="ltr">
                       {inst.dueDate}
                     </td>
-                    <td className="px-3 py-2.5 tabular-nums">{formatMinorUnits(inst.amount)}</td>
-                    <td className="px-3 py-2.5 tabular-nums">{formatMinorUnits(inst.paidAmount)}</td>
+                    <td className="px-3 py-2.5 tabular-nums">{formatCurrency(inst.amount)}</td>
+                    <td className="px-3 py-2.5 tabular-nums">{formatCurrency(inst.paidAmount)}</td>
                     <td className="px-3 py-2.5 font-semibold tabular-nums">
-                      {formatMinorUnits(inst.remainingAmount)}
+                      {formatCurrency(inst.remainingAmount)}
                     </td>
                     <td className="px-3 py-2.5">{installmentStatusBadge(inst.status)}</td>
                   </tr>
@@ -485,7 +485,7 @@ export function ContractDetailWorkspace({
               <div key={p.id} className="py-3 text-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-bold text-[#14533C] tabular-nums">
-                    {formatMinorUnits(p.amount)}
+                    {formatCurrency(p.amount)}
                   </span>
                   <span className="text-xs text-[#56615B]">
                     بواسطة {p.recordedByName} — <span dir="ltr">{p.createdAt.slice(0, 16).replace('T', ' ')}</span>
@@ -494,7 +494,7 @@ export function ContractDetailWorkspace({
                 <p className="mt-1 text-xs text-[#56615B]">
                   التوزيع:{' '}
                   {p.allocations
-                    .map((a) => `قسط #${a.sequenceNumber} (${formatMinorUnits(a.amount)})`)
+                    .map((a) => `قسط #${a.sequenceNumber} (${formatCurrency(a.amount)})`)
                     .join(' + ')}
                 </p>
               </div>

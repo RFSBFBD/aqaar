@@ -1,6 +1,6 @@
 import { requirePageUser } from '@/server/auth';
 import { listAuditLogs } from '@/server/services/audit.service';
-import { formatUtcDateTime } from '@/lib/format';
+import { formatSaudiDateTime } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,7 +43,7 @@ export default async function AuditLogsPage() {
           <table className="w-full border-collapse text-right text-sm">
             <thead className="border-b border-[#E2DDD3] bg-[#F7F5F0] text-xs font-semibold text-[#56615B]">
               <tr>
-                <th className="px-4 py-3">التوقيت</th>
+                <th className="px-4 py-3">التوقيت (توقيت السعودية)</th>
                 <th className="px-4 py-3">المستخدم</th>
                 <th className="px-4 py-3">الحدث</th>
                 <th className="px-4 py-3">الكيان</th>
@@ -54,7 +54,7 @@ export default async function AuditLogsPage() {
               {logs.map((log) => (
                 <tr key={log.id} className="hover:bg-[#F7F5F0]/50">
                   <td className="px-4 py-3 text-xs tabular-nums" dir="ltr">
-                    {formatUtcDateTime(log.createdAt)}
+                    {formatSaudiDateTime(log.createdAt)}
                   </td>
                   <td className="px-4 py-3">{log.userName}</td>
                   <td className="px-4 py-3 font-mono text-xs font-semibold">{log.action}</td>

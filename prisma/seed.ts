@@ -1,5 +1,12 @@
 import 'dotenv/config';
-import { PrismaClient, UserRole, UnitStatus } from '@prisma/client';
+import {
+  PrismaClient,
+  UserRole,
+  UnitStatus,
+  ReservationStatus,
+  ContractStatus,
+  InstallmentStatus,
+} from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import bcrypt from 'bcryptjs';
@@ -238,7 +245,189 @@ async function main() {
     });
   }
 
-  console.log('Seed completed successfully (2 companies, 8 users, 5 units, 4 clients).');
+  // ─── 4. RESERVATIONS & CONTRACTS FOR TESTING ────────────────
+  const expiresFuture = new Date(Date.now() + 72 * 60 * 60 * 1000);
+
+  // Active reservation for Unit A-102 (allows testing contract drafting)
+  await prisma.reservation.upsert({
+    where: { id: 'res_seed_a_102' },
+    update: {
+      status: ReservationStatus.ACTIVE,
+      expiresAt: expiresFuture,
+    },
+    create: {
+      id: 'res_seed_a_102',
+      companyId: companyA.id,
+      unitId: 'unit_a_102',
+      clientId: 'cli_a_2',
+      agentId: 'usr_a_sales2',
+      status: ReservationStatus.ACTIVE,
+      expiresAt: expiresFuture,
+    },
+  });
+  await prisma.unit.update({
+    where: { id: 'unit_a_102' },
+    data: { status: UnitStatus.RESERVED },
+  });
+
+  // Converted reservation for Unit A-101 (has approved contract & installments & payments)
+  await prisma.reservation.upsert({
+    where: { id: 'res_seed_a_101' },
+    update: { status: ReservationStatus.CONVERTED },
+    create: {
+      id: 'res_seed_a_101',
+      companyId: companyA.id,
+      unitId: 'unit_a_101',
+      clientId: 'cli_a_1',
+      agentId: 'usr_a_sales1',
+      status: ReservationStatus.CONVERTED,
+      expiresAt: new Date('2026-02-04T10:00:00Z'),
+    },
+  });
+  await prisma.unit.update({
+    where: { id: 'unit_a_101' },
+    data: { status: UnitStatus.SOLD },
+  });
+
+  // Approved Contract for Unit A-101
+  // unitPrice: 850,000.00 (85_000_000), discount: 25,000.00 (2_500_000), finalPrice: 825,000.00 (82_500_000)
+  // downPayment: 165,000.00 (16_500_000), remaining: 660,000.00 (66_000_000), 6 installments of 110,000.00 (11_000_000)
+  const contractA101 = await prisma.contract.upsert({
+    where: { id: 'cnt_seed_a_101' },
+    update: {},
+    create: {
+      id: 'cnt_seed_a_101',
+      companyId: companyA.id,
+      reservationId: 'res_seed_a_101',
+      unitId: 'unit_a_101',
+      clientId: 'cli_a_1',
+      createdById: 'usr_a_sales1',
+      approvedById: 'usr_a_accountant',
+      status: ContractStatus.APPROVED,
+      unitPrice: 85_000_000n,
+      discount: 2_500_000n,
+      finalPrice: 82_500_000n,
+      downPayment: 16_500_000n,
+      remainingAmount: 66_000_000n,
+      installmentCount: 6,
+      startDate: new Date('2026-02-01'),
+      approvedAt: new Date('2026-02-01T10:00:00Z'),
+    },
+  });
+
+  // 6 Installments
+  const installmentDefs = [
+    { seq: 1, due: '2026-02-28', paid: 11_000_000n, status: InstallmentStatus.PAID },
+    { seq: 2, due: '2026-03-31', paid: 5_000_000n, status: InstallmentStatus.PARTIAL },
+    { seq: 3, due: '2026-04-30', paid: 0n, status: InstallmentStatus.PENDING },
+    { seq: 4, due: '2026-05-31', paid: 0n, status: InstallmentStatus.PENDING },
+    { seq: 5, due: '2026-06-30', paid: 0n, status: InstallmentStatus.PENDING },
+    { seq: 6, due: '2026-07-31', paid: 0n, status: InstallmentStatus.PENDING },
+  ];
+
+  for (const def of installmentDefs) {
+    const instId = `inst_seed_a_101_${def.seq}`;
+    await prisma.installment.upsert({
+      where: { id: instId },
+      update: {},
+      create: {
+        id: instId,
+        contractId: contractA101.id,
+        sequenceNumber: def.seq,
+        dueDate: new Date(def.due),
+        amount: 11_000_000n,
+        paidAmount: def.paid,
+        status: def.status,
+      },
+    });
+  }
+
+  // Payment 160,000.00 (allocates 110,000 to Inst 1, 50,000 to Inst 2)
+  const paymentA101 = await prisma.payment.upsert({
+    where: {
+      companyId_idempotencyKey: {
+        companyId: companyA.id,
+        idempotencyKey: 'seed-payment-init-001',
+      },
+    },
+    update: {},
+    create: {
+      id: 'pay_seed_a_101_1',
+      companyId: companyA.id,
+      contractId: contractA101.id,
+      recordedById: 'usr_a_accountant',
+      amount: 16_000_000n,
+      idempotencyKey: 'seed-payment-init-001',
+      createdAt: new Date('2026-02-15T12:00:00Z'),
+    },
+  });
+
+  await prisma.paymentAllocation.upsert({
+    where: { id: 'alloc_seed_a_101_1' },
+    update: {},
+    create: {
+      id: 'alloc_seed_a_101_1',
+      paymentId: paymentA101.id,
+      installmentId: 'inst_seed_a_101_1',
+      amount: 11_000_000n,
+    },
+  });
+
+  await prisma.paymentAllocation.upsert({
+    where: { id: 'alloc_seed_a_101_2' },
+    update: {},
+    create: {
+      id: 'alloc_seed_a_101_2',
+      paymentId: paymentA101.id,
+      installmentId: 'inst_seed_a_101_2',
+      amount: 5_000_000n,
+    },
+  });
+
+  // Draft Contract for Company B (allows Accountant to test contract approval)
+  await prisma.reservation.upsert({
+    where: { id: 'res_seed_b_101' },
+    update: {
+      status: ReservationStatus.ACTIVE,
+      expiresAt: expiresFuture,
+    },
+    create: {
+      id: 'res_seed_b_101',
+      companyId: companyB.id,
+      unitId: 'unit_b_101',
+      clientId: 'cli_b_1',
+      agentId: 'usr_b_sales1',
+      status: ReservationStatus.ACTIVE,
+      expiresAt: expiresFuture,
+    },
+  });
+  await prisma.unit.update({
+    where: { id: 'unit_b_101' },
+    data: { status: UnitStatus.RESERVED },
+  });
+
+  await prisma.contract.upsert({
+    where: { id: 'cnt_seed_b_101' },
+    update: {},
+    create: {
+      id: 'cnt_seed_b_101',
+      companyId: companyB.id,
+      reservationId: 'res_seed_b_101',
+      unitId: 'unit_b_101',
+      clientId: 'cli_b_1',
+      createdById: 'usr_b_sales1',
+      status: ContractStatus.DRAFT,
+      unitPrice: 92_000_000n,
+      discount: 4_600_000n, // Exactly 5%
+      finalPrice: 87_400_000n,
+      downPayment: 17_400_000n,
+      remainingAmount: 70_000_000n,
+      installmentCount: 10,
+      startDate: new Date('2026-03-01'),
+    },
+  });
+
+  console.log('Seed completed successfully (2 companies, 8 users, 5 units, 4 clients, 2 reservations, 2 contracts, 1 payment).');
 }
 
 main()

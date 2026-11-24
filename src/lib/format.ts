@@ -59,3 +59,33 @@ export function formatUtcDateTime(iso: string): string {
   if (Number.isNaN(d.getTime())) return iso;
   return `${d.toISOString().slice(0, 10)} ${d.toISOString().slice(11, 16)} UTC`;
 }
+
+export const CURRENCY_LABEL = 'ر.س';
+
+/**
+ * Formats a minor-unit integer string into "850,000.00 ر.س".
+ */
+export function formatCurrency(minorStr: string | bigint): string {
+  return `${formatMinorUnits(minorStr)} ${CURRENCY_LABEL}`;
+}
+
+/**
+ * Formats an ISO timestamp in Saudi Arabia local time (Asia/Riyadh, UTC+3).
+ * Output example: "2026-11-24 17:55:00 (توقيت السعودية)"
+ */
+export function formatSaudiDateTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+
+  // Saudi Arabia is UTC+3 throughout the year
+  const riyadhOffsetMs = 3 * 60 * 60 * 1000;
+  const ksaDate = new Date(d.getTime() + riyadhOffsetMs);
+  const year = ksaDate.getUTCFullYear();
+  const month = String(ksaDate.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(ksaDate.getUTCDate()).padStart(2, '0');
+  const hours = String(ksaDate.getUTCHours()).padStart(2, '0');
+  const minutes = String(ksaDate.getUTCMinutes()).padStart(2, '0');
+  const seconds = String(ksaDate.getUTCSeconds()).padStart(2, '0');
+
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} (توقيت السعودية)`;
+}

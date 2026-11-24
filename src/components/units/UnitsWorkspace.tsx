@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Plus, Pencil, Clock, Filter, AlertCircle, CheckCircle2, ChevronRight, ChevronLeft } from 'lucide-react';
-import { formatMinorUnits, majorInputToMinorString, minorStringToMajorInput } from '@/lib/format';
+import Link from 'next/link';
+import { Plus, Pencil, Clock, Filter, AlertCircle, CheckCircle2, ChevronRight, ChevronLeft, ExternalLink } from 'lucide-react';
+import { formatCurrency, formatMinorUnits, majorInputToMinorString, minorStringToMajorInput } from '@/lib/format';
 import { unitStatusBadge } from '@/components/StatusBadge';
 
 interface UnitItem {
@@ -371,7 +372,7 @@ export function UnitsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES' | 'AC
 
         <div>
           <label htmlFor="filter-min-price" className="mb-1 block text-xs font-medium text-[#56615B]">
-            أقل سعر
+            أقل سعر (ر.س)
           </label>
           <input
             id="filter-min-price"
@@ -387,7 +388,7 @@ export function UnitsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES' | 'AC
 
         <div>
           <label htmlFor="filter-max-price" className="mb-1 block text-xs font-medium text-[#56615B]">
-            أعلى سعر
+            أعلى سعر (ر.س)
           </label>
           <input
             id="filter-max-price"
@@ -421,7 +422,7 @@ export function UnitsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES' | 'AC
 
         <div>
           <label htmlFor="sort-dir" className="mb-1 block text-xs font-medium text-[#56615B]">
-            الاتجاه
+            اتجاه الترتيب
           </label>
           <select
             id="sort-dir"
@@ -469,7 +470,7 @@ export function UnitsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES' | 'AC
                   <th className="px-4 py-3">النوع</th>
                   <th className="px-4 py-3">المساحة (م²)</th>
                   <th className="px-4 py-3">الغرف</th>
-                  <th className="px-4 py-3">السعر</th>
+                  <th className="px-4 py-3">السعر (ر.س)</th>
                   <th className="px-4 py-3">الحالة</th>
                   <th className="px-4 py-3">الإجراء</th>
                 </tr>
@@ -477,13 +478,21 @@ export function UnitsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES' | 'AC
               <tbody className="divide-y divide-[#E2DDD3]">
                 {units.map((u) => (
                   <tr key={u.id} className="hover:bg-[#F7F5F0]/50">
-                    <td className="px-4 py-3 font-semibold tabular-nums">{u.unitNumber}</td>
+                    <td className="px-4 py-3 font-semibold tabular-nums">
+                      <Link
+                        href={`/units/${u.id}`}
+                        className="text-[#14533C] hover:underline"
+                        title="فتح صفحة الوحدة"
+                      >
+                        {u.unitNumber}
+                      </Link>
+                    </td>
                     <td className="px-4 py-3">{u.projectName}</td>
                     <td className="px-4 py-3 text-[#56615B]">{u.type}</td>
                     <td className="px-4 py-3 tabular-nums">{u.area}</td>
                     <td className="px-4 py-3 tabular-nums">{u.rooms}</td>
                     <td className="px-4 py-3 font-semibold tabular-nums">
-                      {formatMinorUnits(u.price)}
+                      {formatCurrency(u.price)}
                     </td>
                     <td className="px-4 py-3">{unitStatusBadge(u.status)}</td>
                     <td className="px-4 py-3">
@@ -525,7 +534,12 @@ export function UnitsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES' | 'AC
                 className="rounded-lg border border-[#E2DDD3] bg-white p-4 space-y-2"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-bold tabular-nums">{u.unitNumber}</span>
+                  <Link
+                    href={`/units/${u.id}`}
+                    className="font-bold tabular-nums text-[#14533C] hover:underline"
+                  >
+                    {u.unitNumber}
+                  </Link>
                   {unitStatusBadge(u.status)}
                 </div>
                 <p className="text-sm font-medium">{u.projectName}</p>
@@ -535,7 +549,7 @@ export function UnitsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES' | 'AC
                   <span className="tabular-nums">{u.rooms} غرف</span>
                 </div>
                 <p className="text-base font-bold text-[#14533C] tabular-nums">
-                  {formatMinorUnits(u.price)}
+                  {formatCurrency(u.price)}
                 </p>
                 <div className="pt-2">
                   {userRole === 'ADMIN' && (
@@ -703,7 +717,7 @@ export function UnitsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES' | 'AC
 
               <div>
                 <label htmlFor="u-price" className="mb-1 block text-xs font-medium">
-                  السعر (بالوحدة الأساسية)
+                  السعر (بالريال السعودي - ر.س)
                 </label>
                 <input
                   id="u-price"
@@ -760,7 +774,7 @@ export function UnitsWorkspace({ userRole }: { userRole: 'ADMIN' | 'SALES' | 'AC
               حجز الوحدة {reservingUnit.unitNumber}
             </h2>
             <p className="mt-1 text-sm text-[#56615B]">
-              سيتم حجز الوحدة لمدة 72 ساعة للعميل المختار. إذا لم يتم إنشاء واعتماد العقد خلال هذه المدة تعود الوحدة متاحة تلقائياً.
+              السعر: <strong className="text-[#14533C]">{formatCurrency(reservingUnit.price)}</strong> — سيتم حجز الوحدة لمدة 72 ساعة للعميل المختار. إذا لم يتم إنشاء واعتماد العقد خلال هذه المدة تعود الوحدة متاحة تلقائياً.
             </p>
 
             {reserveError && (
